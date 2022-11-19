@@ -28,6 +28,7 @@ public class Parser
     };
     private static readonly List<List<string>> binaryOperators = new()
     {
+        new() { "." },
         new() { "^" },
         new() { "*", "/", "%" },
         new() { "+", "-" },

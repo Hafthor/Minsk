@@ -123,7 +123,7 @@ public class SymbolToken : Token
 {
     public SymbolToken(string text, int start, int length) : base(text, start, length) { }
     private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=" };
-    private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[]";
+    private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[].";
     public static Token? Lex(string text, ref int i)
     {
         if (i+2<=text.Length && twoCharSymbols.Contains(text.Substring(i,2)))
@@ -170,6 +170,15 @@ public class BinaryToken : Token
     }
     public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
     {
+        if (root.Text.SequenceEqual("."))
+        {
+            var lv2 = left.Eval(func);
+            if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
+            {
+                return dv.ObjectByKey(iv.TextString.Value);
+                throw new Exception($"cannot dereference {lv2.GetType().Name} by {right.GetType().Name}");
+            }
+        }
         var rv = right.Eval(func);
         if (root.Text.SequenceEqual(":")) // root.Text==":" does not work because root.Text is a ReadOnlySpan<char> :(
         {

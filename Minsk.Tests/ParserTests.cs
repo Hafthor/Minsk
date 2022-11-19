@@ -103,6 +103,16 @@ public class ParserTests
     }
 
     [TestMethod]
+    public void ParseDotDictDeref()
+    {
+        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.71) } });
+        var dict = new Dictionary<string, IValue>() { { "dict", d } };
+        var actual = Parser.LexParse("dict.pi").Eval((k) => dict[k]);
+        Assert.IsTrue(actual is DoubleValue);
+        Assert.AreEqual(3.14, actual.Double);
+    }
+
+    [TestMethod]
     public void ParseMethodInvoke()
     {
         var ident = new FunctionValue((v) => v);
@@ -111,4 +121,5 @@ public class ParserTests
         Assert.IsTrue(actual is StringValue);
         Assert.AreEqual("e", actual.String);
     }
+
 }
