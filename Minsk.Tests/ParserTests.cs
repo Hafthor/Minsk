@@ -148,11 +148,14 @@ public class ParserTests
     [TestMethod]
     public void ParseMethodInvoke()
     {
-        var ident = new FunctionValue((v) => v);
-        var dict = new Dictionary<string, IValue>() { { "ident", ident } };
-        var actual = Parser.LexParse("ident(\"e\")").Eval((k) => dict[k]);
+        var upper = new FunctionValue((v) =>
+        {
+            if (v is StringValue sv) return new StringValue(sv.String.ToUpper());
+            throw new Exception("unexpected value type");
+        });
+        var dict = new Dictionary<string, IValue>() { { "upper", upper } };
+        var actual = Parser.LexParse("upper(\"pi\")").Eval((k) => dict[k]);
         Assert.IsTrue(actual is StringValue);
-        Assert.AreEqual("e", actual.String);
+        Assert.AreEqual("PI", actual.String);
     }
-
 }
