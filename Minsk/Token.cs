@@ -123,7 +123,7 @@ public class SymbolToken : Token
 {
     public SymbolToken(string text, int start, int length) : base(text, start, length) { }
     private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=" };
-    private static readonly string oneCharSymbols = "!%*()-+=:<>/^";
+    private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[]";
     public static Token? Lex(string text, ref int i)
     {
         if (i+2<=text.Length && twoCharSymbols.Contains(text.Substring(i,2)))
@@ -195,5 +195,44 @@ public class BinaryToken : Token
             "<=" => new DoubleValue((lv is StringValue ? lv.String.CompareTo(rv.String) <= 0 : lv.Double <= rv.Double) ? 1.0 : 0.0),
             _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
         };
+    }
+}
+
+public class DerefToken : Token
+{
+    private readonly IdentifierToken root;
+    private readonly Token right;
+    public DerefToken(IdentifierToken root, Token right) : base(root.text, root.start, right.start + right.length - root.start)
+    {
+        this.root = root;
+        this.right = right;
+    }
+    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
+    {
+        var rv = right.Eval(func);
+        var lv = root.Eval(func);
+        if (lv is DictionaryValue dv && rv is StringValue)
+            return dv.ObjectByKey(rv.String);
+        if (lv is ArrayValue av && rv is DoubleValue)
+            return av.ObjectByIndex(rv.Double);
+        throw new Exception($"unable to dereference {lv.GetType().Name} by {rv.GetType().Name}");
+    }
+}
+
+public class MethodInvokeToken : Token
+{
+    private readonly IdentifierToken root;
+    private readonly Token right;
+    public MethodInvokeToken(IdentifierToken root, Token right) : base(root.text, root.start, right.start + right.length - root.start)
+    {
+        this.root = root;
+        this.right = right;
+    }
+    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) {
+        var rv = right.Eval(func);
+        var lv = root.Eval(func);
+        if (lv is FunctionValue fv)
+            return fv.InvokeWith(rv);
+        throw new Exception($"unable to invoke {lv.GetType().Name}");
     }
 }

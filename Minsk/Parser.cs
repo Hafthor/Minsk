@@ -39,13 +39,24 @@ public class Parser
         tokens = tokens.Where(_ => _ is not WhiteSpaceToken && _ is not CommentToken).ToList();
         for (; ; ) // parse parenthesis loop
         {
-            var rightParen = tokens.FindIndex(t => t is SymbolToken st && st.TextEquals(")"));
+            var rightParen = tokens.FindIndex(t => t is SymbolToken st && "}])".Contains(st.Text[0]));
             if (rightParen < 0) break;
-            var leftParen = tokens.FindLastIndex(rightParen - 1, t => t is SymbolToken st && st.TextEquals("("));
-            if (leftParen < 0) throw new Exception("Unmatch parenthesis");
+            var leftChar = "{[("["}])".IndexOf(tokens[rightParen].TextString.Value)];
+            var leftParen = tokens.FindLastIndex(rightParen - 1, t => t is SymbolToken st && st.Text[0] == leftChar);
+            if (leftParen < 0) throw new Exception("Unmatch parenthesis/brackets/braces");
+            var prefix = leftParen == 0 ? null : tokens[leftParen - 1] as IdentifierToken;
             var innerTokens = tokens.GetRange(leftParen + 1, rightParen - leftParen - 1);
             tokens.RemoveRange(leftParen, rightParen - leftParen + 1);
-            tokens.Insert(leftParen, ParseTokens(innerTokens));
+            var token = ParseTokens(innerTokens);
+            if (prefix != null && leftChar != '{')
+            {
+                tokens.RemoveAt(leftParen - 1);
+                tokens.Insert(leftParen - 1, leftChar == '[' ? new DerefToken(prefix, token) : new MethodInvokeToken(prefix, token));
+            }
+            else
+            {
+                tokens.Insert(leftParen, token);
+            }
         }
         return ParseTokens(tokens);
     }

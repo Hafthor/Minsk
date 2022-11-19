@@ -27,3 +27,36 @@ public class StringValue : IValue
 	public double Double => @double.Value;
 	public object Object => value;
 }
+
+public class DictionaryValue : IValue
+{
+	private readonly Dictionary<string, IValue> value;
+	public DictionaryValue() { value = new Dictionary<string, IValue>(); }
+	public DictionaryValue(Dictionary<string, IValue> dict) { value = dict; }
+	public string String => throw new Exception("cannot convert dictionary to string");
+	public double Double => throw new Exception("cannot convert dictionary to double");
+	public object Object => value;
+	public IValue ObjectByKey(string key) => value[key];
+}
+
+public class ArrayValue : IValue
+{
+	private readonly List<IValue> value;
+	public ArrayValue() { value = new List<IValue>(); }
+	public ArrayValue(List<IValue> arr) { value = arr; }
+    public string String => throw new Exception("cannot convert array to string");
+    public double Double => throw new Exception("cannot convert array to double");
+    public object Object => value;
+	public IValue ObjectByIndex(double index) => value[(int)index];
+}
+
+public class FunctionValue : IValue
+{
+	private readonly Func<IValue, IValue> value;
+	public FunctionValue() { value = (v) => v; }
+	public FunctionValue(Func<IValue, IValue> func) { value = func; }
+	public string String => throw new Exception("cannot convert function to string");
+    public double Double => throw new Exception("cannot convert function to double");
+	public object Object => value;
+	public IValue InvokeWith(IValue param) => value(param);
+}
