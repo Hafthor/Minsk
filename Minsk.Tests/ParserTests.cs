@@ -93,6 +93,17 @@ public class ParserTests
     }
 
     [TestMethod]
+    public void ParseArraySet()
+    {
+        var arr = new ArrayValue(new List<IValue>() { new DoubleValue(2.71) });
+        var dict = new Dictionary<string, IValue>() { { "arr", arr } };
+        var actual = Parser.LexParse("arr[0]:3.14").Eval((k) => dict[k]);
+        var obj0 = arr.ObjectByIndex(0);
+        Assert.IsTrue(obj0 is DoubleValue);
+        Assert.AreEqual(3.14, obj0.Double);
+    }
+
+    [TestMethod]
     public void ParseDictDeref()
     {
         var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.71) } });
@@ -103,6 +114,17 @@ public class ParserTests
     }
 
     [TestMethod]
+    public void ParseDictSet()
+    {
+        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) } });
+        var dict = new Dictionary<string, IValue>() { { "dict", d } };
+        var actual = Parser.LexParse("dict[\"e\"]:2.71").Eval((k) => dict[k]);
+        var objE = d.ObjectByKey("e");
+        Assert.IsTrue(objE is DoubleValue);
+        Assert.AreEqual(2.71, objE.Double);
+    }
+
+    [TestMethod]
     public void ParseDotDictDeref()
     {
         var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.71) } });
@@ -110,6 +132,17 @@ public class ParserTests
         var actual = Parser.LexParse("dict.pi").Eval((k) => dict[k]);
         Assert.IsTrue(actual is DoubleValue);
         Assert.AreEqual(3.14, actual.Double);
+    }
+
+    [TestMethod]
+    public void ParseDotDictSet()
+    {
+        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) } });
+        var dict = new Dictionary<string, IValue>() { { "dict", d } };
+        var actual = Parser.LexParse("dict.e:2.71").Eval((k) => dict[k]);
+        var objE = d.ObjectByKey("e");
+        Assert.IsTrue(objE is DoubleValue);
+        Assert.AreEqual(2.71, objE.Double);
     }
 
     [TestMethod]

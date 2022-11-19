@@ -55,9 +55,7 @@ public class Parser
                 tokens.Insert(leftParen - 1, leftChar == '[' ? new DerefToken(prefix, token) : new MethodInvokeToken(prefix, token));
             }
             else
-            {
                 tokens.Insert(leftParen, token);
-            }
         }
         return ParseTokens(tokens);
     }

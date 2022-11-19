@@ -174,14 +174,14 @@ public class BinaryToken : Token
         {
             var lv2 = left.Eval(func);
             if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
-            {
                 return dv.ObjectByKey(iv.TextString.Value);
-                throw new Exception($"cannot dereference {lv2.GetType().Name} by {right.GetType().Name}");
-            }
+            throw new Exception($"cannot dereference {lv2.GetType().Name} by {right.GetType().Name}");
         }
         var rv = right.Eval(func);
         if (root.Text.SequenceEqual(":")) // root.Text==":" does not work because root.Text is a ReadOnlySpan<char> :(
         {
+            if (left is BinaryToken bt && bt.root.Text.SequenceEqual(".")) { bt.SetDot(rv, func); return rv; }
+            if (left is DerefToken dt) { dt.Set(rv, func); return rv; }
             if (left is not IdentifierToken it) throw new Exception("Cannot assign to non-identifier");
             if (assignFunc is not null) assignFunc(it.TextString.Value, rv);
             return rv;
@@ -205,6 +205,13 @@ public class BinaryToken : Token
             _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
         };
     }
+    public void SetDot(IValue value, Func<string, IValue>? func = null)
+    {
+        var lv2 = left.Eval(func);
+        if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
+            dv.SetObjectByKey(iv.TextString.Value, value);
+        else throw new Exception($"Cannot assign to {lv2.GetType().Name} . {right.GetType().Name}");
+    }
 }
 
 public class DerefToken : Token
@@ -225,6 +232,17 @@ public class DerefToken : Token
         if (lv is ArrayValue av && rv is DoubleValue)
             return av.ObjectByIndex(rv.Double);
         throw new Exception($"unable to dereference {lv.GetType().Name} by {rv.GetType().Name}");
+    }
+    public void Set(IValue value, Func<string, IValue>? func = null)
+    {
+        var indexOrKey = right.Eval(func, null);
+        var rv = right.Eval(func);
+        var lv = root.Eval(func);
+        if (lv is DictionaryValue dv && rv is StringValue)
+            dv.SetObjectByKey(rv.String, value);
+        else if (lv is ArrayValue av && rv is DoubleValue)
+            av.SetObjectByIndex(rv.Double, value);
+        else throw new Exception($"cannot assign to {lv.GetType().Name} by {rv.GetType().Name}");
     }
 }
 

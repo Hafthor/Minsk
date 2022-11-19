@@ -37,6 +37,7 @@ public class DictionaryValue : IValue
 	public double Double => throw new Exception("cannot convert dictionary to double");
 	public object Object => value;
 	public IValue ObjectByKey(string key) => value[key];
+	public void SetObjectByKey(string key, IValue val) => value[key] = val;
 }
 
 public class ArrayValue : IValue
@@ -48,6 +49,7 @@ public class ArrayValue : IValue
     public double Double => throw new Exception("cannot convert array to double");
     public object Object => value;
 	public IValue ObjectByIndex(double index) => value[(int)index];
+	public void SetObjectByIndex(double index, IValue val) => value[(int)index] = val;
 }
 
 public class FunctionValue : IValue
