@@ -21,25 +21,13 @@ public class Parser
         return tokens;
     }
 
-    private static readonly List<List<string>> unaryOperators = new()
-    {
-        new() { "+", "-" },
-        new() { "!" },
-    };
-    private static readonly List<List<string>> binaryOperators = new()
-    {
-        new() { "." },
-        new() { "^" },
-        new() { "*", "/", "%" },
-        new() { "+", "-" },
-        new() { "=", "!=", ">", "<", ">=", "<=" },
-        new() { ":" },
-        new() { ";" },
-    };
+    private static readonly List<string> emptyObjectOperators = new List<string>() { "[]", "{}" };
     private static Token Parse(List<Token> tokens)
     {
-        tokens = tokens.Where(t => t is not WhiteSpaceToken && t is not CommentToken).ToList();
-        tokens = tokens.Select(t => t is SymbolToken st && (st.TextString.Value == "[]" || st.TextString.Value == "{}") ? new EmptyObjectToken(st) : t).ToList();
+        tokens = tokens
+            .Where(t => t is not WhiteSpaceToken && t is not CommentToken)
+            .Select(t => t is SymbolToken st && emptyObjectOperators.Contains(st.TextString.Value) ? new EmptyObjectToken(st) : t)
+            .ToList();
         for (; ; ) // parse parenthesis loop
         {
             var rightParen = tokens.FindIndex(t => t is SymbolToken st && "}])".Contains(st.TextString.Value));
@@ -62,6 +50,21 @@ public class Parser
         return ParseTokens(tokens);
     }
 
+    private static readonly List<List<string>> unaryOperators = new()
+    {
+        new() { "+", "-" },
+        new() { "!" },
+    };
+    private static readonly List<List<string>> binaryOperators = new()
+    {
+        new() { "." },
+        new() { "^" },
+        new() { "*", "/", "%" },
+        new() { "+", "-" },
+        new() { "=", "!=", ">", "<", ">=", "<=" },
+        new() { ":" },
+        new() { ";" },
+    };
     private static Token ParseTokens(List<Token> tokens)
     {
         foreach (var ops in unaryOperators) tokens = ParseUnary(tokens, ops);
