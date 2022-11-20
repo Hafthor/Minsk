@@ -17,6 +17,7 @@ public class Token
     public bool TextEquals(ReadOnlySpan<char> str) => Text.CompareTo(str, StringComparison.Ordinal) == 0;
     public bool TextEquals(string str) => Text.CompareTo(str, StringComparison.Ordinal) == 0;
     public virtual IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) => throw new Exception($"unhandled {GetType().Name}");
+    public virtual void PrettyPrint(string indent) => Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
 }
 
 public class BadToken : Token
@@ -166,6 +167,12 @@ public class UnaryToken : Token
             _ => throw new Exception($"unknown unary symbol {root.Text} in expression {Text}"),
         };
     }
+    public override void PrettyPrint(string indent)
+    {
+        Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
+        root.PrettyPrint(indent + "  ");
+        right.PrettyPrint(indent + "  ");
+    }
 }
 
 public class BinaryToken : Token
@@ -227,6 +234,13 @@ public class BinaryToken : Token
             dv.SetObjectByKey(iv.TextString.Value, value);
         else throw new Exception($"Cannot assign to {lv2.GetType().Name} . {right.GetType().Name}");
     }
+    public override void PrettyPrint(string indent)
+    {
+        Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
+        root.PrettyPrint(indent + "  ");
+        left.PrettyPrint(indent + "  ");
+        right.PrettyPrint(indent + "  ");
+    }
 }
 
 public class DerefToken : Token
@@ -257,6 +271,12 @@ public class DerefToken : Token
             av.SetObjectByIndex(rv.Double, value);
         else throw new Exception($"cannot assign to {lv.GetType().Name} by {rv.GetType().Name}");
     }
+    public override void PrettyPrint(string indent)
+    {
+        Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
+        root.PrettyPrint(indent + "  ");
+        right.PrettyPrint(indent + "  ");
+    }
 }
 
 public class MethodInvokeToken : Token
@@ -273,5 +293,11 @@ public class MethodInvokeToken : Token
         if (lv is FunctionValue fv)
             return fv.InvokeWith(rv);
         throw new Exception($"unable to invoke {lv.GetType().Name}");
+    }
+    public override void PrettyPrint(string indent)
+    {
+        Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
+        root.PrettyPrint(indent + "  ");
+        right.PrettyPrint(indent + "  ");
     }
 }
