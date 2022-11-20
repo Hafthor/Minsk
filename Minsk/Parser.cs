@@ -41,11 +41,10 @@ public class Parser
             var token = ParseTokens(innerTokens);
             if (prefix != null && leftChar != '{')
             {
-                tokens.RemoveAt(leftParen - 1);
-                tokens.Insert(leftParen - 1, leftChar == '[' ? new DerefToken(prefix, token) : new MethodInvokeToken(prefix, token));
+                tokens.RemoveAt(--leftParen);
+                token = leftChar == '[' ? new DerefToken(prefix, token) : new MethodInvokeToken(prefix, token);
             }
-            else
-                tokens.Insert(leftParen, token);
+            tokens.Insert(leftParen, token);
         }
         return ParseTokens(tokens);
     }

@@ -185,15 +185,12 @@ public class BinaryToken : Token
         this.left = left;
         this.right = right;
     }
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
-    {
-        if (root.Text.SequenceEqual(";"))
-        {
+    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) {
+        if (root.Text.SequenceEqual(";")) {
             left.Eval(func, assignFunc);
             return right.Eval(func, assignFunc);
         }
-        if (root.Text.SequenceEqual("."))
-        {
+        if (root.Text.SequenceEqual(".")) {
             var lv2 = left.Eval(func);
             if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
                 return dv.ObjectByKey(iv.TextString.Value);
@@ -210,23 +207,68 @@ public class BinaryToken : Token
         }
 
         var lv = left.Eval(func);
-        return root.Text switch
-        {
-            "+" => lv is StringValue ? new StringValue(lv.String + rv.String) : new DoubleValue(lv.Double + rv.Double),
-            "-" => new DoubleValue(lv.Double - rv.Double),
-            "*" => new DoubleValue(lv.Double * rv.Double),
-            "/" => new DoubleValue(lv.Double / rv.Double),
-            "%" => new DoubleValue(lv.Double % rv.Double),
-            "^" => new DoubleValue(Math.Pow(lv.Double, rv.Double)),
-            "=" => new DoubleValue((lv is StringValue ? lv.String == rv.String : lv.Double == rv.Double) ? 1.0 : 0.0),
-            "!=" => new DoubleValue((lv is StringValue ? lv.String != rv.String : lv.Double != rv.Double) ? 1.0 : 0.0),
-            ">" => new DoubleValue((lv is StringValue ? lv.String.CompareTo(rv.String) > 0 : lv.Double > rv.Double) ? 1.0 : 0.0),
-            "<" => new DoubleValue((lv is StringValue ? lv.String.CompareTo(rv.String) < 0 : lv.Double < rv.Double) ? 1.0 : 0.0),
-            ">=" => new DoubleValue((lv is StringValue ? lv.String.CompareTo(rv.String) >= 0 : lv.Double >= rv.Double) ? 1.0 : 0.0),
-            "<=" => new DoubleValue((lv is StringValue ? lv.String.CompareTo(rv.String) <= 0 : lv.Double <= rv.Double) ? 1.0 : 0.0),
-            _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
-        };
+        if (lv is DoubleValue ldv)
+            return EvalDoubleOperator(ldv, rv);
+        if (lv is StringValue lsv)
+            return EvalStringOperator(lsv, rv);
+        if (lv is ArrayValue lav)
+            return EvalArrayOperator(lav, rv);
+        if (lv is DictionaryValue lov)
+            return EvalDictionaryOperator(lov, rv);
+        if (lv is FunctionValue lfv)
+            return EvalFunctionOperator(lfv, rv);
+        throw new Exception($"Unknown lvalue type {lv.GetType().Name}");
     }
+
+    private IValue EvalDoubleOperator(IValue lv, IValue rv) => root.Text switch
+    {
+        "+" => new DoubleValue(lv.Double + rv.Double),
+        "-" => new DoubleValue(lv.Double - rv.Double),
+        "*" => new DoubleValue(lv.Double * rv.Double),
+        "/" => new DoubleValue(lv.Double / rv.Double),
+        "%" => new DoubleValue(lv.Double % rv.Double),
+        "^" => new DoubleValue(Math.Pow(lv.Double, rv.Double)),
+        "=" => new DoubleValue(lv.Double == rv.Double ? 1.0 : 0.0),
+        "!=" => new DoubleValue(lv.Double != rv.Double ? 1.0 : 0.0),
+        ">" => new DoubleValue(lv.Double > rv.Double ? 1.0 : 0.0),
+        "<" => new DoubleValue(lv.Double < rv.Double ? 1.0 : 0.0),
+        ">=" => new DoubleValue(lv.Double >= rv.Double ? 1.0 : 0.0),
+        "<=" => new DoubleValue(lv.Double <= rv.Double ? 1.0 : 0.0),
+        _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
+    };
+
+    private IValue EvalStringOperator(StringValue lv, IValue rv) => root.Text switch
+    {
+        "+" => new StringValue(lv.String + rv.String),
+        "-" => new DoubleValue(lv.Double - rv.Double),
+        "*" => new DoubleValue(lv.Double * rv.Double),
+        "/" => new DoubleValue(lv.Double / rv.Double),
+        "%" => new DoubleValue(lv.Double % rv.Double),
+        "^" => new DoubleValue(Math.Pow(lv.Double, rv.Double)),
+        "=" => new DoubleValue(lv.String == rv.String ? 1.0 : 0.0),
+        "!=" => new DoubleValue(lv.String != rv.String ? 1.0 : 0.0),
+        ">" => new DoubleValue(lv.String.CompareTo(rv.String) > 0 ? 1.0 : 0.0),
+        "<" => new DoubleValue(lv.String.CompareTo(rv.String) < 0 ? 1.0 : 0.0),
+        ">=" => new DoubleValue(lv.String.CompareTo(rv.String) >= 0 ? 1.0 : 0.0),
+        "<=" => new DoubleValue(lv.String.CompareTo(rv.String) <= 0 ? 1.0 : 0.0),
+        _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
+    };
+
+    private IValue EvalArrayOperator(ArrayValue av, IValue rv) => root.Text switch
+    {
+        _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
+    };
+
+    private IValue EvalDictionaryOperator(DictionaryValue ov, IValue rv) => root.Text switch
+    {
+        _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
+    };
+
+    private IValue EvalFunctionOperator(FunctionValue ov, IValue rv) => root.Text switch
+    {
+        _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
+    };
+
     public void SetDot(IValue value, Func<string, IValue>? func = null)
     {
         var lv2 = left.Eval(func);
