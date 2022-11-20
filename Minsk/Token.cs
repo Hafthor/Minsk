@@ -123,7 +123,7 @@ public class SymbolToken : Token
 {
     public SymbolToken(string text, int start, int length) : base(text, start, length) { }
     private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=" };
-    private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[].";
+    private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[].;";
     public static Token? Lex(string text, ref int i)
     {
         if (i+2<=text.Length && twoCharSymbols.Contains(text.Substring(i,2)))
@@ -170,6 +170,11 @@ public class BinaryToken : Token
     }
     public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
     {
+        if (root.Text.SequenceEqual(";"))
+        {
+            left.Eval(func, assignFunc);
+            return right.Eval(func, assignFunc);
+        }
         if (root.Text.SequenceEqual("."))
         {
             var lv2 = left.Eval(func);

@@ -34,6 +34,7 @@ public class Parser
         new() { "+", "-" },
         new() { "=", "!=", ">", "<", ">=", "<=" },
         new() { ":" },
+        new() { ";" },
     };
     private static Token Parse(List<Token> tokens)
     {

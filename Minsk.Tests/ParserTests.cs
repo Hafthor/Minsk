@@ -158,4 +158,21 @@ public class ParserTests
         Assert.IsTrue(actual is StringValue);
         Assert.AreEqual("PI", actual.String);
     }
+
+    [TestMethod]
+    public void ParseStatements()
+    {
+        var dict = new Dictionary<string, IValue>();
+        var actual = Parser.LexParse("a:1;b:2;c:3;d:a+b*c").Eval((k) => dict[k], (k, v) => dict[k] = v);
+        Assert.IsTrue(actual is DoubleValue);
+        Assert.AreEqual(7.0, actual.Double);
+        Assert.IsTrue(dict["a"] is DoubleValue);
+        Assert.AreEqual(1.0, dict["a"].Double);
+        Assert.IsTrue(dict["b"] is DoubleValue);
+        Assert.AreEqual(2.0, dict["b"].Double);
+        Assert.IsTrue(dict["c"] is DoubleValue);
+        Assert.AreEqual(3.0, dict["c"].Double);
+        Assert.IsTrue(dict["d"] is DoubleValue);
+        Assert.AreEqual(7.0, dict["d"].Double);
+    }
 }
