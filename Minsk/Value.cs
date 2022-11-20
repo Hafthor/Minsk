@@ -45,11 +45,19 @@ public class ArrayValue : IValue
 	private readonly List<IValue> value;
 	public ArrayValue() { value = new List<IValue>(); }
 	public ArrayValue(List<IValue> arr) { value = arr; }
-    public string String => throw new Exception("cannot convert array to string");
-    public double Double => throw new Exception("cannot convert array to double");
-    public object Object => value;
+	public string String => throw new Exception("cannot convert array to string");
+	public double Double => throw new Exception("cannot convert array to double");
+	public object Object => value;
 	public IValue ObjectByIndex(double index) => value[(int)index];
-	public void SetObjectByIndex(double index, IValue val) => value[(int)index] = val;
+	public void SetObjectByIndex(double index, IValue val)
+	{
+		if (index == value.Count)
+			value.Add(val);
+		else if (index < value.Count && index >= 0)
+			value[(int)index] = val;
+		else
+			throw new Exception("Index out of range");
+	}
 }
 
 public class FunctionValue : IValue

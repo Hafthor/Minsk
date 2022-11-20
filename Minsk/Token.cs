@@ -122,7 +122,7 @@ public class IdentifierToken : Token
 public class SymbolToken : Token
 {
     public SymbolToken(string text, int start, int length) : base(text, start, length) { }
-    private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=" };
+    private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=", "[]", "{}" };
     private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[].;";
     public static Token? Lex(string text, ref int i)
     {
@@ -134,6 +134,16 @@ public class SymbolToken : Token
         }
         return oneCharSymbols.Contains(text[i]) ? new SymbolToken(text, i++, 1) : null;
     }
+}
+public class EmptyObjectToken : Token
+{
+    public EmptyObjectToken(SymbolToken token) : base(token.text, token.start, token.length) { }
+    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) => Text switch
+    {
+        "[]" => new ArrayValue(),
+        "{}" => new DictionaryValue(),
+        _ => throw new Exception("Unexpected EmptyObjectToken")
+    };
 }
 
 public class UnaryToken : Token

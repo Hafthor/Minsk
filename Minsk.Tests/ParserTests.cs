@@ -175,4 +175,15 @@ public class ParserTests
         Assert.IsTrue(dict["d"] is DoubleValue);
         Assert.AreEqual(7.0, dict["d"].Double);
     }
+
+    [TestMethod]
+    public void ParseNewObjects()
+    {
+        var dict = new Dictionary<string, IValue>();
+        var actual = Parser.LexParse("a:[];b:{};a[0]:3.14;b[\"e\"]:2.71").Eval((k) => dict[k], (k, v) => dict[k] = v);
+        Assert.IsTrue(dict["a"] is ArrayValue);
+        Assert.AreEqual(3.14, dict["a"] is ArrayValue av ? av.ObjectByIndex(0).Double : 0);
+        Assert.IsTrue(dict["b"] is DictionaryValue);
+        Assert.AreEqual(2.71, dict["b"] is DictionaryValue dv ? dv.ObjectByKey("e").Double : 0);
+    }
 }
