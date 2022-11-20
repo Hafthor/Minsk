@@ -1,2 +1,4 @@
 # Minsk
-just a little throw-away compiler project
+Just a little throw-away compiler project.
+
+About 450 LoC.

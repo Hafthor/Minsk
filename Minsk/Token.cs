@@ -240,8 +240,7 @@ public class DerefToken : Token
     }
     public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
     {
-        var rv = right.Eval(func);
-        var lv = root.Eval(func);
+        IValue rv = right.Eval(func), lv = root.Eval(func);
         if (lv is DictionaryValue dv && rv is StringValue)
             return dv.ObjectByKey(rv.String);
         if (lv is ArrayValue av && rv is DoubleValue)
@@ -251,8 +250,7 @@ public class DerefToken : Token
     public void Set(IValue value, Func<string, IValue>? func = null)
     {
         var indexOrKey = right.Eval(func, null);
-        var rv = right.Eval(func);
-        var lv = root.Eval(func);
+        IValue rv = right.Eval(func), lv = root.Eval(func);
         if (lv is DictionaryValue dv && rv is StringValue)
             dv.SetObjectByKey(rv.String, value);
         else if (lv is ArrayValue av && rv is DoubleValue)
@@ -271,8 +269,7 @@ public class MethodInvokeToken : Token
         this.right = right;
     }
     public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) {
-        var rv = right.Eval(func);
-        var lv = root.Eval(func);
+        IValue rv = right.Eval(func), lv = root.Eval(func);
         if (lv is FunctionValue fv)
             return fv.InvokeWith(rv);
         throw new Exception($"unable to invoke {lv.GetType().Name}");
