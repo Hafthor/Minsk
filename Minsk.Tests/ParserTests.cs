@@ -217,4 +217,12 @@ public class ParserTests
         Assert.IsTrue(dict["a"] is DoubleValue);
         Assert.AreEqual(12.0, dict["a"].Double);
     }
+
+    [TestMethod]
+    public void ParseFact()
+    {
+        var actual = Parser.LexParse("n:1; fact:1; n<=10 ? { fact:fact*n; n:n+1 }; fact").Eval(dictRead, dictWrite);
+        Assert.IsTrue(actual is DoubleValue);
+        Assert.AreEqual(3628800.0, actual.Double);
+    }
 }
