@@ -40,10 +40,14 @@ public class ParserTests
         {"\"abc\"+123","abc123"},
     };
 
+    private Dictionary<string, IValue> dict = new Dictionary<string, IValue>();
+    private IValue dictRead(string key) => dict[key];
+    private void dictWrite(string key, IValue val) => dict[key] = val;
+
     [TestMethod]
     public void ParseDoubles()
     {
-        foreach(var e in doubleTests)
+        foreach (var e in doubleTests)
         {
             var actual = Parser.LexParse(e.Key).Eval();
             Assert.IsTrue(actual is DoubleValue);
@@ -65,7 +69,7 @@ public class ParserTests
     [TestMethod]
     public void ParseIdentifier()
     {
-        var dict = new Dictionary<string, IValue>() { { "abc", new DoubleValue(123) } };
+        dict.Add("abc", new DoubleValue(123));
         var actual = Parser.LexParse("abc").Eval((k) => dict[k]);
         Assert.IsTrue(actual is DoubleValue);
         Assert.AreEqual(123.0, actual.Double);
@@ -74,8 +78,7 @@ public class ParserTests
     [TestMethod]
     public void ParseAssignment()
     {
-        var dict = new Dictionary<string, IValue>();
-        var actual = Parser.LexParse("abc:123").Eval(null, (k, v) => dict[k] = v);
+        var actual = Parser.LexParse("abc:123").Eval(null, dictWrite);
         Assert.IsTrue(actual is DoubleValue);
         Assert.AreEqual(123.0, actual.Double);
         Assert.IsTrue(dict["abc"] is DoubleValue);
@@ -85,19 +88,19 @@ public class ParserTests
     [TestMethod]
     public void ParseArrayDeref()
     {
-        var arr = new ArrayValue(new List<IValue>() { new DoubleValue(3.14), new DoubleValue(2.71) });
-        var dict = new Dictionary<string, IValue>() { { "arr", arr } };
-        var actual = Parser.LexParse("arr[1]").Eval((k) => dict[k]);
+        var arr = new ArrayValue(new List<IValue>() { new DoubleValue(3.14), new DoubleValue(2.718) });
+        dict.Add("arr", arr);
+        var actual = Parser.LexParse("arr[1]").Eval(dictRead);
         Assert.IsTrue(actual is DoubleValue);
-        Assert.AreEqual(2.71, actual.Double);
+        Assert.AreEqual(2.718, actual.Double);
     }
 
     [TestMethod]
     public void ParseArraySet()
     {
-        var arr = new ArrayValue(new List<IValue>() { new DoubleValue(2.71) });
-        var dict = new Dictionary<string, IValue>() { { "arr", arr } };
-        var actual = Parser.LexParse("arr[0]:3.14").Eval((k) => dict[k]);
+        var arr = new ArrayValue(new List<IValue>() { new DoubleValue(2.718) });
+        dict.Add("arr", arr);
+        var actual = Parser.LexParse("arr[0]:3.14").Eval(dictRead);
         var obj0 = arr.ObjectByIndex(0);
         Assert.IsTrue(obj0 is DoubleValue);
         Assert.AreEqual(3.14, obj0.Double);
@@ -106,30 +109,30 @@ public class ParserTests
     [TestMethod]
     public void ParseDictDeref()
     {
-        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.71) } });
-        var dict = new Dictionary<string, IValue>() { { "dict", d } };
-        var actual = Parser.LexParse("dict[\"e\"]").Eval((k) => dict[k]);
+        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.718) } });
+        dict.Add("d", d);
+        var actual = Parser.LexParse("d[\"e\"]").Eval(dictRead);
         Assert.IsTrue(actual is DoubleValue);
-        Assert.AreEqual(2.71, actual.Double);
+        Assert.AreEqual(2.718, actual.Double);
     }
 
     [TestMethod]
     public void ParseDictSet()
     {
         var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) } });
-        var dict = new Dictionary<string, IValue>() { { "dict", d } };
-        var actual = Parser.LexParse("dict[\"e\"]:2.71").Eval((k) => dict[k]);
+        dict.Add("d", d);
+        var actual = Parser.LexParse("d[\"e\"]:2.718").Eval(dictRead);
         var objE = d.ObjectByKey("e");
         Assert.IsTrue(objE is DoubleValue);
-        Assert.AreEqual(2.71, objE.Double);
+        Assert.AreEqual(2.718, objE.Double);
     }
 
     [TestMethod]
     public void ParseDotDictDeref()
     {
-        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.71) } });
-        var dict = new Dictionary<string, IValue>() { { "dict", d } };
-        var actual = Parser.LexParse("dict.pi").Eval((k) => dict[k]);
+        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.718) } });
+        dict.Add("d", d);
+        var actual = Parser.LexParse("d.pi").Eval(dictRead);
         Assert.IsTrue(actual is DoubleValue);
         Assert.AreEqual(3.14, actual.Double);
     }
@@ -138,11 +141,11 @@ public class ParserTests
     public void ParseDotDictSet()
     {
         var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) } });
-        var dict = new Dictionary<string, IValue>() { { "dict", d } };
-        var actual = Parser.LexParse("dict.e:2.71").Eval((k) => dict[k]);
+        dict.Add("d", d);
+        var actual = Parser.LexParse("d.e:2.718").Eval(dictRead);
         var objE = d.ObjectByKey("e");
         Assert.IsTrue(objE is DoubleValue);
-        Assert.AreEqual(2.71, objE.Double);
+        Assert.AreEqual(2.718, objE.Double);
     }
 
     [TestMethod]
@@ -153,8 +156,8 @@ public class ParserTests
             if (v is StringValue sv) return new StringValue(sv.String.ToUpper());
             throw new Exception("unexpected value type");
         });
-        var dict = new Dictionary<string, IValue>() { { "upper", upper } };
-        var actual = Parser.LexParse("upper(\"pi\")").Eval((k) => dict[k]);
+        dict.Add("upper", upper);
+        var actual = Parser.LexParse("upper(\"pi\")").Eval(dictRead);
         Assert.IsTrue(actual is StringValue);
         Assert.AreEqual("PI", actual.String);
     }
@@ -162,8 +165,7 @@ public class ParserTests
     [TestMethod]
     public void ParseStatements()
     {
-        var dict = new Dictionary<string, IValue>();
-        var actual = Parser.LexParse("a:1;b:2;c:3;d:a+b*c").Eval((k) => dict[k], (k, v) => dict[k] = v);
+        var actual = Parser.LexParse("a:1;b:2;c:3;d:a+b*c").Eval(dictRead, dictWrite);
         Assert.IsTrue(actual is DoubleValue);
         Assert.AreEqual(7.0, actual.Double);
         Assert.IsTrue(dict["a"] is DoubleValue);
@@ -179,11 +181,40 @@ public class ParserTests
     [TestMethod]
     public void ParseNewObjects()
     {
-        var dict = new Dictionary<string, IValue>();
-        var actual = Parser.LexParse("a:[];b:{};a[0]:3.14;b[\"e\"]:2.71").Eval((k) => dict[k], (k, v) => dict[k] = v);
+        var actual = Parser.LexParse("a:[];b:{};a[0]:3.14;b[\"e\"]:2.718").Eval(dictRead, dictWrite);
         Assert.IsTrue(dict["a"] is ArrayValue);
         Assert.AreEqual(3.14, dict["a"] is ArrayValue av ? av.ObjectByIndex(0).Double : 0);
         Assert.IsTrue(dict["b"] is DictionaryValue);
-        Assert.AreEqual(2.71, dict["b"] is DictionaryValue dv ? dv.ObjectByKey("e").Double : 0);
+        Assert.AreEqual(2.718, dict["b"] is DictionaryValue dv ? dv.ObjectByKey("e").Double : 0);
+    }
+
+    [TestMethod]
+    public void ParseIfFalse()
+    {
+        var actual = Parser.LexParse("a:3.14;a=3.2??a:2.718").Eval(dictRead, dictWrite);
+        Assert.IsTrue(actual is DoubleValue);
+        Assert.AreEqual(0.0, actual.Double);
+        Assert.IsTrue(dict["a"] is DoubleValue);
+        Assert.AreEqual(3.14, dict["a"].Double);
+    }
+
+    [TestMethod]
+    public void ParseIfTrue()
+    {
+        var actual = Parser.LexParse("a:3.14;a=3.14??a:2.718").Eval(dictRead, dictWrite);
+        Assert.IsTrue(actual is DoubleValue);
+        Assert.AreEqual(2.718, actual.Double);
+        Assert.IsTrue(dict["a"] is DoubleValue);
+        Assert.AreEqual(2.718, dict["a"].Double);
+    }
+
+    [TestMethod]
+    public void ParseWhile()
+    {
+        var actual = Parser.LexParse("a:0;a<10?a:a+3").Eval(dictRead, dictWrite);
+        Assert.IsTrue(actual is DoubleValue);
+        Assert.AreEqual(0.0, actual.Double);
+        Assert.IsTrue(dict["a"] is DoubleValue);
+        Assert.AreEqual(12.0, dict["a"].Double);
     }
 }

@@ -66,7 +66,7 @@ public class FunctionValue : IValue
 	public FunctionValue() { value = (v) => v; }
 	public FunctionValue(Func<IValue, IValue> func) { value = func; }
 	public string String => throw new Exception("cannot convert function to string");
-    public double Double => throw new Exception("cannot convert function to double");
+	public double Double => throw new Exception("cannot convert function to double");
 	public object Object => value;
 	public IValue InvokeWith(IValue param) => value(param);
 }

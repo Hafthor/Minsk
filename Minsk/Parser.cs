@@ -22,6 +22,7 @@ public class Parser
     }
 
     private static readonly List<string> emptyObjectOperators = new List<string>() { "[]", "{}" };
+
     private static Token Parse(List<Token> tokens)
     {
         tokens = tokens
@@ -51,19 +52,22 @@ public class Parser
 
     private static readonly List<List<string>> unaryOperators = new()
     {
-        new() { "+", "-" },
-        new() { "!" },
+        new() { "+", "-" }, // unary plus, minus
+        new() { "!" }, // not
     };
+
     private static readonly List<List<string>> binaryOperators = new()
     {
-        new() { "." },
-        new() { "^" },
-        new() { "*", "/", "%" },
-        new() { "+", "-" },
-        new() { "=", "!=", ">", "<", ">=", "<=" },
-        new() { ":" },
-        new() { ";" },
+        new() { "." }, // deref
+        new() { "^" }, // exp
+        new() { "*", "/", "%" }, // mul, div, mod
+        new() { "+", "-" }, // add, sub
+        new() { "=", "!=", ">", "<", ">=", "<=" }, // equality
+        new() { ":" }, // assign
+        new() { "?", "??" }, // while, if
+        new() { ";" }, // seperator
     };
+
     private static Token ParseTokens(List<Token> tokens)
     {
         foreach (var ops in unaryOperators) tokens = ParseUnary(tokens, ops);
@@ -77,7 +81,7 @@ public class Parser
         var newTokens = new List<Token>();
         for (int i = 0; i < tokens.Count; i++)
             if (tokens[i] is SymbolToken st && operators.Contains(st.TextString.Value) &&
-                (i==0 || tokens[i-1] is SymbolToken))
+                (i == 0 || tokens[i - 1] is SymbolToken))
                 newTokens.Add(new UnaryToken(st, tokens[++i]));
             else
                 newTokens.Add(tokens[i]);

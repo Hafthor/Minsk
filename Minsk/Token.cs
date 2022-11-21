@@ -84,7 +84,7 @@ public class StringToken : Token
     {
         int i = start, e = start + length;
         var sb = new System.Text.StringBuilder();
-        for(; ;)
+        for (; ; )
         {
             var j = text.IndexOf('\\', i);
             if (j < 0 || j >= e) return sb.Append(text, i, e - i).ToString();
@@ -123,11 +123,11 @@ public class IdentifierToken : Token
 public class SymbolToken : Token
 {
     public SymbolToken(string text, int start, int length) : base(text, start, length) { }
-    private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=", "[]", "{}" };
-    private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[].;";
+    private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=", "[]", "{}", "??" };
+    private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[].;?";
     public static Token? Lex(string text, ref int i)
     {
-        if (i+2<=text.Length && twoCharSymbols.Contains(text.Substring(i,2)))
+        if (i + 2 <= text.Length && twoCharSymbols.Contains(text.Substring(i, 2)))
         {
             var symbol = new SymbolToken(text, i, 2);
             i += 2;
@@ -136,6 +136,7 @@ public class SymbolToken : Token
         return oneCharSymbols.Contains(text[i]) ? new SymbolToken(text, i++, 1) : null;
     }
 }
+
 public class EmptyObjectToken : Token
 {
     public EmptyObjectToken(SymbolToken token) : base(token.text, token.start, token.length) { }
@@ -185,12 +186,29 @@ public class BinaryToken : Token
         this.left = left;
         this.right = right;
     }
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) {
-        if (root.Text.SequenceEqual(";")) {
+    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
+    {
+        if (root.Text.SequenceEqual(";"))
+        {
             left.Eval(func, assignFunc);
             return right.Eval(func, assignFunc);
         }
-        if (root.Text.SequenceEqual(".")) {
+        if (root.Text.SequenceEqual("?"))
+        {
+            for (; ; )
+            {
+                var lv2 = left.Eval(func, assignFunc);
+                if (lv2.Double == 0.0) return lv2;
+                right.Eval(func, assignFunc);
+            }
+        }
+        if (root.Text.SequenceEqual("??"))
+        {
+            var lv2 = left.Eval(func, assignFunc);
+            return lv2.Double == 0.0 ? lv2 : right.Eval(func, assignFunc);
+        }
+        if (root.Text.SequenceEqual("."))
+        {
             var lv2 = left.Eval(func);
             if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
                 return dv.ObjectByKey(iv.TextString.Value);
@@ -330,7 +348,8 @@ public class MethodInvokeToken : Token
         this.root = root;
         this.right = right;
     }
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) {
+    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
+    {
         IValue rv = right.Eval(func), lv = root.Eval(func);
         if (lv is FunctionValue fv)
             return fv.InvokeWith(rv);
