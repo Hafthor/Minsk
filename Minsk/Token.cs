@@ -123,7 +123,7 @@ public class IdentifierToken : Token
 public class SymbolToken : Token
 {
     public SymbolToken(string text, int start, int length) : base(text, start, length) { }
-    private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=", "[]", "{}", "??" };
+    private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=", "[]", "{}", "??", "!?" };
     private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[].;?";
     public static Token? Lex(string text, ref int i)
     {
@@ -159,7 +159,7 @@ public class UnaryToken : Token
     }
     public override IValue Eval(Variables vars)
     {
-        static DoubleValue EvalNot(IValue v) => new DoubleValue((v is StringValue ? string.IsNullOrEmpty(v.String) : v.Double == 0.0) ? 1.0 : 0.0);
+        static DoubleValue EvalNot(IValue v) => (v is StringValue ? string.IsNullOrEmpty(v.String) : v.Double == 0.0) ? DoubleValue.One : DoubleValue.Zero;
         return root.Text switch
         {
             "+" => new DoubleValue(right.Eval(vars).Double),
@@ -207,6 +207,11 @@ public class BinaryToken : Token
             var lv2 = left.Eval(vars);
             return lv2.Double == 0.0 ? lv2 : right.Eval(vars);
         }
+        if (root.Text.SequenceEqual("!?"))
+        {
+            var lv2 = left.Eval(vars);
+            return lv2.Double != 0.0 ? lv2 : right.Eval(vars);
+        }
         if (root.Text.SequenceEqual("."))
         {
             var lv2 = left.Eval(vars);
@@ -248,12 +253,12 @@ public class BinaryToken : Token
         "/" => new DoubleValue(lv.Double / rv.Double),
         "%" => new DoubleValue(lv.Double % rv.Double),
         "^" => new DoubleValue(Math.Pow(lv.Double, rv.Double)),
-        "=" => new DoubleValue(lv.Double == rv.Double ? 1.0 : 0.0),
-        "!=" => new DoubleValue(lv.Double != rv.Double ? 1.0 : 0.0),
-        ">" => new DoubleValue(lv.Double > rv.Double ? 1.0 : 0.0),
-        "<" => new DoubleValue(lv.Double < rv.Double ? 1.0 : 0.0),
-        ">=" => new DoubleValue(lv.Double >= rv.Double ? 1.0 : 0.0),
-        "<=" => new DoubleValue(lv.Double <= rv.Double ? 1.0 : 0.0),
+        "=" => lv.Double == rv.Double ? DoubleValue.One : DoubleValue.Zero,
+        "!=" => lv.Double != rv.Double ? DoubleValue.One : DoubleValue.Zero,
+        ">" => lv.Double > rv.Double ? DoubleValue.One : DoubleValue.Zero,
+        "<" => lv.Double < rv.Double ? DoubleValue.One : DoubleValue.Zero,
+        ">=" => lv.Double >= rv.Double ? DoubleValue.One : DoubleValue.Zero,
+        "<=" => lv.Double <= rv.Double ? DoubleValue.One : DoubleValue.Zero,
         _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
     };
 
@@ -265,12 +270,12 @@ public class BinaryToken : Token
         "/" => new DoubleValue(lv.Double / rv.Double),
         "%" => new DoubleValue(lv.Double % rv.Double),
         "^" => new DoubleValue(Math.Pow(lv.Double, rv.Double)),
-        "=" => new DoubleValue(lv.String == rv.String ? 1.0 : 0.0),
-        "!=" => new DoubleValue(lv.String != rv.String ? 1.0 : 0.0),
-        ">" => new DoubleValue(lv.String.CompareTo(rv.String) > 0 ? 1.0 : 0.0),
-        "<" => new DoubleValue(lv.String.CompareTo(rv.String) < 0 ? 1.0 : 0.0),
-        ">=" => new DoubleValue(lv.String.CompareTo(rv.String) >= 0 ? 1.0 : 0.0),
-        "<=" => new DoubleValue(lv.String.CompareTo(rv.String) <= 0 ? 1.0 : 0.0),
+        "=" => lv.String == rv.String ? DoubleValue.One : DoubleValue.Zero,
+        "!=" => lv.String != rv.String ? DoubleValue.One : DoubleValue.Zero,
+        ">" => lv.String.CompareTo(rv.String) > 0 ? DoubleValue.One : DoubleValue.Zero,
+        "<" => lv.String.CompareTo(rv.String) < 0 ? DoubleValue.One : DoubleValue.Zero,
+        ">=" => lv.String.CompareTo(rv.String) >= 0 ? DoubleValue.One : DoubleValue.Zero,
+        "<=" => lv.String.CompareTo(rv.String) <= 0 ? DoubleValue.One : DoubleValue.Zero,
         _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
     };
 

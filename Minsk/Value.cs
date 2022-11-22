@@ -22,6 +22,9 @@ public class DoubleValue : IValue
 	private readonly double value;
 	private readonly Lazy<string> @string;
 	public DoubleValue(double value) { this.value = value; @string = new Lazy<string>(() => value.ToString()); }
+	public static readonly DoubleValue Zero = new DoubleValue(0);
+    public static readonly DoubleValue One = new DoubleValue(1);
+    public static readonly DoubleValue NaN = new DoubleValue(double.NaN);
 	public string String => @string.Value;
 	public double Double => value;
 	public object Object => value;
@@ -42,8 +45,8 @@ public class DictionaryValue : IValue
 	private readonly Dictionary<string, IValue> value;
 	public DictionaryValue() { value = new Dictionary<string, IValue>(); }
 	public DictionaryValue(Dictionary<string, IValue> dict) { value = dict; }
-	public string String => throw new Exception("cannot convert dictionary to string");
-	public double Double => throw new Exception("cannot convert dictionary to double");
+	public string String => "[Dictionary]";
+	public double Double => double.NaN;
 	public object Object => value;
 	public IValue ObjectByKey(string key) => value[key];
 	public void SetObjectByKey(string key, IValue val) => value[key] = val;
@@ -54,8 +57,8 @@ public class ArrayValue : IValue
 	private readonly List<IValue> value;
 	public ArrayValue() { value = new List<IValue>(); }
 	public ArrayValue(List<IValue> arr) { value = arr; }
-	public string String => throw new Exception("cannot convert array to string");
-	public double Double => throw new Exception("cannot convert array to double");
+	public string String => "[Array]";
+	public double Double => double.NaN;
 	public object Object => value;
 	public IValue ObjectByIndex(double index) => value[(int)index];
 	public void SetObjectByIndex(double index, IValue val)
@@ -78,8 +81,8 @@ public class FunctionValue : IValue
 		this.parameterName = parameterName;
 		value = func;
 	}
-	public string String => throw new Exception("cannot convert function to string");
-	public double Double => throw new Exception("cannot convert function to double");
+	public string String => "[Function]";
+	public double Double => double.NaN;
 	public object Object => value;
 	public IValue InvokeWith(IValue param, Variables vars)
 	{

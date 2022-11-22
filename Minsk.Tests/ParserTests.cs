@@ -243,4 +243,16 @@ public class ParserTests
         Assert.IsTrue(vars.Get("n") is DoubleValue);
         Assert.AreEqual(2.0, vars.Get("n") is DoubleValue dv ? dv.Double : 0.0);
     }
+
+    [TestMethod]
+    public void ParseNotIf()
+    {
+        var actual = Parser.LexParse("1 !? 2.718").Eval(vars);
+        Assert.IsTrue(actual is DoubleValue);
+        Assert.AreEqual(1.0, actual.Double);
+
+        actual = Parser.LexParse("0 !? 2.718").Eval(vars);
+        Assert.IsTrue(actual is DoubleValue);
+        Assert.AreEqual(2.718, actual.Double);
+    }
 }

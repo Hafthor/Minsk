@@ -64,7 +64,7 @@ public class Parser
         new() { "+", "-" }, // add, sub
         new() { "=", "!=", ">", "<", ">=", "<=" }, // equality
         new() { ":" }, // assign
-        new() { "?", "??" }, // while, if
+        new() { "?", "??", "!?" }, // while, if/else
         new() { ";" }, // seperator
     };
 
