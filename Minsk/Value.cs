@@ -8,6 +8,15 @@ public interface IValue
 	public object Object { get; }
 }
 
+public class NullValue : IValue
+{
+	private NullValue() { }
+	public static readonly NullValue Instance = new NullValue();
+	public string String => null;
+	public double Double => double.NaN;
+	public object Object => null;
+}
+
 public class DoubleValue : IValue
 {
 	private readonly double value;
@@ -62,11 +71,22 @@ public class ArrayValue : IValue
 
 public class FunctionValue : IValue
 {
-	private readonly Func<IValue, IValue> value;
-	public FunctionValue() { value = (v) => v; }
-	public FunctionValue(Func<IValue, IValue> func) { value = func; }
+    private readonly string parameterName;
+    private readonly Func<IValue, IValue> value;
+	public FunctionValue(string parameterName, Func<IValue, IValue> func)
+	{
+		this.parameterName = parameterName;
+		value = func;
+	}
 	public string String => throw new Exception("cannot convert function to string");
 	public double Double => throw new Exception("cannot convert function to double");
 	public object Object => value;
-	public IValue InvokeWith(IValue param) => value(param);
+	public IValue InvokeWith(IValue param, Variables vars)
+	{
+		vars.EnterScope();
+		vars.Set(parameterName, param);
+		var returnValue = value(param);
+		vars.LeaveScope();
+		return returnValue;
+	}
 }

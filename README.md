@@ -1,7 +1,7 @@
 # Minsk
 Just a little throw-away compiler project.
 
-About 500 LoC.
+About 600 LoC.
 
 Here's how to compute the factorial of 10:
 

@@ -5,7 +5,7 @@ public class Program
     public static int Main(string[] args)
     {
         bool prettyPrint = false;
-        var dict = new Dictionary<string, IValue>();
+        var vars = new Variables();
         for (; ; )
         {
             Console.Write("> ");
@@ -14,7 +14,7 @@ public class Program
             if (line == "#pretty") { prettyPrint = !prettyPrint; continue; }
             var root = Parser.LexParse(line);
             if (prettyPrint) root.PrettyPrint("");
-            var d = root.Eval((k) => dict[k], (k, v) => dict[k] = v);
+            var d = root.Eval(vars);
             Console.WriteLine(d.String);
         }
         return 0;

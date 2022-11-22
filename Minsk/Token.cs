@@ -16,7 +16,7 @@ public class Token
     public ReadOnlySpan<char> Text => text.AsSpan().Slice(start, length);
     public bool TextEquals(ReadOnlySpan<char> str) => Text.CompareTo(str, StringComparison.Ordinal) == 0;
     public bool TextEquals(string str) => Text.CompareTo(str, StringComparison.Ordinal) == 0;
-    public virtual IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) => throw new Exception($"unhandled {GetType().Name}");
+    public virtual IValue Eval(Variables vars) => throw new Exception($"unhandled {GetType().Name}");
     public virtual void PrettyPrint(string indent) => Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
 }
 
@@ -64,7 +64,7 @@ public class NumberToken : Token
         while (i < text.Length && (char.IsDigit(text[i]) || text[i] == '.' && text.IndexOf('.', start) == i)) i++;
         return new NumberToken(text, start, i - start);
     }
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) => new DoubleValue(double.Parse(Text));
+    public override IValue Eval(Variables vars) => new DoubleValue(double.Parse(Text));
 }
 
 public class StringToken : Token
@@ -104,7 +104,7 @@ public class StringToken : Token
         'v' => '\v',
         _ => c
     };
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) => new StringValue(String);
+    public override IValue Eval(Variables vars) => new StringValue(String);
 }
 
 public class IdentifierToken : Token
@@ -117,7 +117,7 @@ public class IdentifierToken : Token
         while (i < text.Length && (char.IsLetterOrDigit(text[i]) || text[i] == '_')) i++;
         return new IdentifierToken(text, start, i - start);
     }
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) => func!(TextString.Value);
+    public override IValue Eval(Variables vars) => vars.Get(TextString.Value);
 }
 
 public class SymbolToken : Token
@@ -140,7 +140,7 @@ public class SymbolToken : Token
 public class EmptyObjectToken : Token
 {
     public EmptyObjectToken(SymbolToken token) : base(token.text, token.start, token.length) { }
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null) => Text switch
+    public override IValue Eval(Variables vars) => Text switch
     {
         "[]" => new ArrayValue(),
         "{}" => new DictionaryValue(),
@@ -157,14 +157,14 @@ public class UnaryToken : Token
         this.root = root;
         this.right = right;
     }
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
+    public override IValue Eval(Variables vars)
     {
         static DoubleValue EvalNot(IValue v) => new DoubleValue((v is StringValue ? string.IsNullOrEmpty(v.String) : v.Double == 0.0) ? 1.0 : 0.0);
         return root.Text switch
         {
-            "+" => new DoubleValue(right.Eval(func).Double),
-            "-" => new DoubleValue(-right.Eval(func).Double),
-            "!" => EvalNot(right.Eval(func)),
+            "+" => new DoubleValue(right.Eval(vars).Double),
+            "-" => new DoubleValue(-right.Eval(vars).Double),
+            "!" => EvalNot(right.Eval(vars)),
             _ => throw new Exception($"unknown unary symbol {root.Text} in expression {Text}"),
         };
     }
@@ -186,45 +186,47 @@ public class BinaryToken : Token
         this.left = left;
         this.right = right;
     }
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
+    public override IValue Eval(Variables vars)
     {
         if (root.Text.SequenceEqual(";"))
         {
-            left.Eval(func, assignFunc);
-            return right.Eval(func, assignFunc);
+            left.Eval(vars);
+            return right.Eval(vars);
         }
         if (root.Text.SequenceEqual("?"))
         {
             for (; ; )
             {
-                var lv2 = left.Eval(func, assignFunc);
+                var lv2 = left.Eval(vars);
                 if (lv2.Double == 0.0) return lv2;
-                right.Eval(func, assignFunc);
+                right.Eval(vars);
             }
         }
         if (root.Text.SequenceEqual("??"))
         {
-            var lv2 = left.Eval(func, assignFunc);
-            return lv2.Double == 0.0 ? lv2 : right.Eval(func, assignFunc);
+            var lv2 = left.Eval(vars);
+            return lv2.Double == 0.0 ? lv2 : right.Eval(vars);
         }
         if (root.Text.SequenceEqual("."))
         {
-            var lv2 = left.Eval(func);
+            var lv2 = left.Eval(vars);
             if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
                 return dv.ObjectByKey(iv.TextString.Value);
             throw new Exception($"cannot dereference {lv2.GetType().Name} by {right.GetType().Name}");
         }
-        var rv = right.Eval(func);
+        if (root.Text.SequenceEqual(":") && left is MethodInvokeToken mit)
+            return (IValue)mit.Set(vars, right);
+        var rv = right.Eval(vars);
         if (root.Text.SequenceEqual(":")) // root.Text==":" does not work because root.Text is a ReadOnlySpan<char> :(
         {
-            if (left is BinaryToken bt && bt.root.Text.SequenceEqual(".")) { bt.SetDot(rv, func); return rv; }
-            if (left is DerefToken dt) { dt.Set(rv, func); return rv; }
+            if (left is BinaryToken bt && bt.root.Text.SequenceEqual(".")) { bt.SetDot(rv, vars); return rv; }
+            if (left is DerefToken dt) { dt.Set(rv, vars); return rv; }
             if (left is not IdentifierToken it) throw new Exception("Cannot assign to non-identifier");
-            if (assignFunc is not null) assignFunc(it.TextString.Value, rv);
+            vars.Set(it.TextString.Value, rv);
             return rv;
         }
 
-        var lv = left.Eval(func);
+        var lv = left.Eval(vars);
         if (lv is DoubleValue ldv)
             return EvalDoubleOperator(ldv, rv);
         if (lv is StringValue lsv)
@@ -287,9 +289,9 @@ public class BinaryToken : Token
         _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
     };
 
-    public void SetDot(IValue value, Func<string, IValue>? func = null)
+    public void SetDot(IValue value, Variables vars)
     {
-        var lv2 = left.Eval(func);
+        var lv2 = left.Eval(vars);
         if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
             dv.SetObjectByKey(iv.TextString.Value, value);
         else throw new Exception($"Cannot assign to {lv2.GetType().Name} . {right.GetType().Name}");
@@ -312,19 +314,19 @@ public class DerefToken : Token
         this.root = root;
         this.right = right;
     }
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
+    public override IValue Eval(Variables vars)
     {
-        IValue rv = right.Eval(func), lv = root.Eval(func);
+        IValue rv = right.Eval(vars), lv = root.Eval(vars);
         if (lv is DictionaryValue dv && rv is StringValue)
             return dv.ObjectByKey(rv.String);
         if (lv is ArrayValue av && rv is DoubleValue)
             return av.ObjectByIndex(rv.Double);
         throw new Exception($"unable to dereference {lv.GetType().Name} by {rv.GetType().Name}");
     }
-    public void Set(IValue value, Func<string, IValue>? func = null)
+    public void Set(IValue value, Variables vars)
     {
-        var indexOrKey = right.Eval(func, null);
-        IValue rv = right.Eval(func), lv = root.Eval(func);
+        var indexOrKey = right.Eval(vars);
+        IValue rv = right.Eval(vars), lv = root.Eval(vars);
         if (lv is DictionaryValue dv && rv is StringValue)
             dv.SetObjectByKey(rv.String, value);
         else if (lv is ArrayValue av && rv is DoubleValue)
@@ -348,11 +350,11 @@ public class MethodInvokeToken : Token
         this.root = root;
         this.right = right;
     }
-    public override IValue Eval(Func<string, IValue>? func = null, Action<string, IValue>? assignFunc = null)
+    public override IValue Eval(Variables vars)
     {
-        IValue rv = right.Eval(func), lv = root.Eval(func);
+        IValue rv = right.Eval(vars), lv = root.Eval(vars);
         if (lv is FunctionValue fv)
-            return fv.InvokeWith(rv);
+            return fv.InvokeWith(rv, vars);
         throw new Exception($"unable to invoke {lv.GetType().Name}");
     }
     public override void PrettyPrint(string indent)
@@ -360,5 +362,14 @@ public class MethodInvokeToken : Token
         Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
         root.PrettyPrint(indent + "  ");
         right.PrettyPrint(indent + "  ");
+    }
+    public FunctionValue Set(Variables vars, Token definition)
+    {
+        var methodName = this.root.TextString.Value;
+        var parameterName = (this.right as IdentifierToken)!.TextString.Value;
+
+        var fv  = new FunctionValue(parameterName, (n) => definition.Eval(vars));
+        vars.Set(methodName, fv);
+        return fv;
     }
 }
