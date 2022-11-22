@@ -237,8 +237,10 @@ public class ParserTests
     [TestMethod]
     public void ParseMethodScope()
     {
-        var actual = Parser.LexParse("n:0;add3(n):n+3;add3(2);n").Eval(vars);
+        var actual = Parser.LexParse("n:2;add3(n):n+3;add3(n)").Eval(vars);
         Assert.IsTrue(actual is DoubleValue);
-        Assert.AreEqual(0.0, actual.Double);
+        Assert.AreEqual(5.0, actual.Double);
+        Assert.IsTrue(vars.Get("n") is DoubleValue);
+        Assert.AreEqual(2.0, vars.Get("n") is DoubleValue dv ? dv.Double : 0.0);
     }
 }

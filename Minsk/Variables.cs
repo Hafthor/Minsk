@@ -9,15 +9,18 @@ public class Variables
 	public IValue Get(string variableName)
 	{
 		foreach (var scope in scopeStack)
-			if (scope.ContainsKey(variableName))
-				return scope[variableName];
+			if (scope.TryGetValue(variableName, out IValue value))
+				return value;
 		return NullValue.Instance;
 	}
 
 	public void Set(string variableName, IValue value)
 	{
 		var scope = scopeStack.Peek();
-		if (scope.ContainsKey(variableName)) scope[variableName] = value; else scope.Add(variableName, value);
+		if (scope.ContainsKey(variableName))
+			scope[variableName] = value;
+		else
+			scope.Add(variableName, value);
 	}
 
 	public void EnterScope() => scopeStack.Push(new Dictionary<string, IValue>());
