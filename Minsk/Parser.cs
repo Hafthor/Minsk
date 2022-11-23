@@ -35,7 +35,7 @@ public class Parser
             if (rightParen < 0) break;
             var leftChar = "{[("["}])".IndexOf(tokens[rightParen].TextString.Value)];
             var leftParen = tokens.FindLastIndex(rightParen - 1, t => t is SymbolToken st && st.TextString.Value == "" + leftChar);
-            if (leftParen < 0) throw new Exception("Unmatch parenthesis/brackets/braces");
+            if (leftParen < 0) throw new Exception("Unmatched parenthesis/brackets/braces");
             var prefix = leftParen == 0 ? null : tokens[leftParen - 1] as IdentifierToken;
             var innerTokens = tokens.GetRange(leftParen + 1, rightParen - leftParen - 1);
             tokens.RemoveRange(leftParen, rightParen - leftParen + 1);
@@ -64,7 +64,7 @@ public class Parser
         new() { "+", "-" }, // add, sub
         new() { "=", "!=", ">", "<", ">=", "<=" }, // equality
         new() { ":" }, // assign
-        new() { "?", "??", "!?" }, // while, if/else
+        new() { "?", "??", "!?", "::" }, // while, if/notif, else
         new() { ";" }, // seperator
     };
 

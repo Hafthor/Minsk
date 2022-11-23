@@ -123,7 +123,7 @@ public class IdentifierToken : Token
 public class SymbolToken : Token
 {
     public SymbolToken(string text, int start, int length) : base(text, start, length) { }
-    private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=", "[]", "{}", "??", "!?" };
+    private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=", "[]", "{}", "??", "!?", "::" };
     private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[].;?";
     public static Token? Lex(string text, ref int i)
     {
@@ -211,6 +211,16 @@ public class BinaryToken : Token
         {
             var lv2 = left.Eval(vars);
             return lv2.Double != 0.0 ? lv2 : right.Eval(vars);
+        }
+        if (root.Text.SequenceEqual("::"))
+        {
+            if (left is BinaryToken bt && bt.root is SymbolToken st &&  (st.Text.SequenceEqual("??") || st.Text.SequenceEqual("!?")))
+            {
+                var lv2 = bt.left.Eval(vars).Double;
+                if (st.Text.SequenceEqual("!?")) lv2 = lv2 == 0.0 ? 1.0 : 0.0;
+                return lv2 != 0.0 ? bt.right.Eval(vars) : right.Eval(vars);
+            }
+            throw new Exception("Unbalanced else(::) found");
         }
         if (root.Text.SequenceEqual("."))
         {

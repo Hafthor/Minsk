@@ -255,4 +255,16 @@ public class ParserTests
         Assert.IsTrue(actual is DoubleValue);
         Assert.AreEqual(2.718, actual.Double);
     }
+
+    [TestMethod]
+    public void ParseElse()
+    {
+        var actual = Parser.LexParse("0 ?? 3.14 :: 2.718").Eval(vars);
+        Assert.IsTrue(actual is DoubleValue);
+        Assert.AreEqual(2.718, actual.Double);
+
+        actual = Parser.LexParse("1 ?? 3.14 :: 2.718").Eval(vars);
+        Assert.IsTrue(actual is DoubleValue);
+        Assert.AreEqual(3.14, actual.Double);
+    }
 }
