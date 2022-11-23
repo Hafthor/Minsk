@@ -2,6 +2,26 @@
 
 public class Parser
 {
+    private static readonly List<string> emptyObjectOperators = new List<string>() { "[]", "{}" };
+
+    private static readonly List<List<string>> unaryOperators = new()
+    {
+        new() { "+", "-" }, // unary plus, minus
+        new() { "!" }, // not
+    };
+
+    private static readonly List<List<string>> binaryOperators = new()
+    {
+        new() { "." }, // deref
+        new() { "^" }, // exp
+        new() { "*", "/", "%" }, // mul, div, mod
+        new() { "+", "-" }, // add, sub
+        new() { "=", "!=", ">", "<", ">=", "<=" }, // equality
+        new() { ":" }, // assign
+        new() { "?", "??", "!?", "::" }, // while, if/notif, else
+        new() { ";" }, // seperator
+    };
+
     private Parser() { }
 
     public static Token LexParse(string text) => Parse(Lex(text));
@@ -10,18 +30,9 @@ public class Parser
     {
         var tokens = new List<Token>();
         for (int i = 0; i < text.Length;)
-            tokens.Add(
-                WhiteSpaceToken.Lex(text, ref i) ??
-                CommentToken.Lex(text, ref i) ??
-                StringToken.Lex(text, ref i) ??
-                IdentifierToken.Lex(text, ref i) ??
-                NumberToken.Lex(text, ref i) ??
-                SymbolToken.Lex(text, ref i) ??
-                new BadToken(text, i++, 1));
+            tokens.Add(Token.Lex(text, ref i));
         return tokens;
     }
-
-    private static readonly List<string> emptyObjectOperators = new List<string>() { "[]", "{}" };
 
     private static Token Parse(List<Token> tokens)
     {
@@ -50,28 +61,12 @@ public class Parser
         return ParseTokens(tokens);
     }
 
-    private static readonly List<List<string>> unaryOperators = new()
-    {
-        new() { "+", "-" }, // unary plus, minus
-        new() { "!" }, // not
-    };
-
-    private static readonly List<List<string>> binaryOperators = new()
-    {
-        new() { "." }, // deref
-        new() { "^" }, // exp
-        new() { "*", "/", "%" }, // mul, div, mod
-        new() { "+", "-" }, // add, sub
-        new() { "=", "!=", ">", "<", ">=", "<=" }, // equality
-        new() { ":" }, // assign
-        new() { "?", "??", "!?", "::" }, // while, if/notif, else
-        new() { ";" }, // seperator
-    };
-
     private static Token ParseTokens(List<Token> tokens)
     {
-        foreach (var ops in unaryOperators) tokens = ParseUnary(tokens, ops);
-        foreach (var ops in binaryOperators) tokens = ParseBinary(tokens, ops);
+        foreach (var ops in unaryOperators)
+            tokens = ParseUnary(tokens, ops);
+        foreach (var ops in binaryOperators)
+            tokens = ParseBinary(tokens, ops);
         if (tokens.Count != 1) throw new Exception($"Expected one node but ended up with {tokens.Count}");
         return tokens[0];
     }

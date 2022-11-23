@@ -18,6 +18,16 @@ public class Token
     public bool TextEquals(string str) => Text.CompareTo(str, StringComparison.Ordinal) == 0;
     public virtual IValue Eval(Variables vars) => throw new Exception($"unhandled {GetType().Name}");
     public virtual void PrettyPrint(string indent) => Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
+    public static Token Lex(string text, ref int i)
+    {
+        return WhiteSpaceToken.Lex(text, ref i) ??
+                CommentToken.Lex(text, ref i) ??
+                StringToken.Lex(text, ref i) ??
+                IdentifierToken.Lex(text, ref i) ??
+                NumberToken.Lex(text, ref i) ??
+                SymbolToken.Lex(text, ref i) ??
+                new BadToken(text, i++, 1);
+    }
 }
 
 public class BadToken : Token
@@ -28,7 +38,7 @@ public class BadToken : Token
 public class WhiteSpaceToken : Token
 {
     public WhiteSpaceToken(string text, int start, int length) : base(text, start, length) { }
-    public static Token? Lex(string text, ref int i)
+    public static new Token? Lex(string text, ref int i)
     {
         if (!char.IsWhiteSpace(text[i])) return null;
         var start = i++;
@@ -40,7 +50,7 @@ public class WhiteSpaceToken : Token
 public class CommentToken : Token
 {
     public CommentToken(string text, int start, int length) : base(text, start, length) { }
-    public static Token? Lex(string text, ref int i)
+    public static new Token? Lex(string text, ref int i)
     {
         if (i + 1 >= text.Length || text[i] != '/' || (text[i + 1] != '/' && text[i + 1] != '*')) return null;
         var start = i++;
@@ -57,7 +67,7 @@ public class CommentToken : Token
 public class NumberToken : Token
 {
     public NumberToken(string text, int start, int length) : base(text, start, length) { }
-    public static Token? Lex(string text, ref int i)
+    public static new Token? Lex(string text, ref int i)
     {
         if (!char.IsDigit(text[i])) return null;
         var start = i++;
@@ -70,7 +80,7 @@ public class NumberToken : Token
 public class StringToken : Token
 {
     public StringToken(string text, int start, int length) : base(text, start, length) => String = UnescapeString(text, start, length);
-    public static Token? Lex(string text, ref int i)
+    public static new Token? Lex(string text, ref int i)
     {
         if (text[i] != '"') return null;
         // token has Text = undecoded raw inner Text (not including quotes)
@@ -110,7 +120,7 @@ public class StringToken : Token
 public class IdentifierToken : Token
 {
     public IdentifierToken(string text, int start, int length) : base(text, start, length) { }
-    public static Token? Lex(string text, ref int i)
+    public static new Token? Lex(string text, ref int i)
     {
         if (!char.IsLetter(text[i]) || text[i] == '_') return null;
         var start = i;
@@ -122,10 +132,10 @@ public class IdentifierToken : Token
 
 public class SymbolToken : Token
 {
-    public SymbolToken(string text, int start, int length) : base(text, start, length) { }
     private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=", "[]", "{}", "??", "!?", "::" };
     private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[].;?";
-    public static Token? Lex(string text, ref int i)
+    public SymbolToken(string text, int start, int length) : base(text, start, length) { }
+    public static new Token? Lex(string text, ref int i)
     {
         if (i + 2 <= text.Length && twoCharSymbols.Contains(text.Substring(i, 2)))
         {
