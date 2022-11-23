@@ -20,8 +20,8 @@ public class Parser
         new() { ";" }, // seperator
     };
 
-    internal static readonly List<string> symbols =
-        "[]{}()".ToCharArray().ToList().Select(c => "" + c)
+    internal static readonly List<string> AllSymbols =
+        (openParenOperators + closeParenOperators).ToCharArray().ToList().Select(c => "" + c)
         .Union(emptyObjectOperators)
         .Union(unaryOperators.SelectMany(s => s))
         .Union(binaryOperators.SelectMany(s => s))
@@ -39,13 +39,15 @@ public class Parser
         return tokens;
     }
 
-    private static Token Parse(List<Token> tokens)
-    {
-        tokens = tokens
+    private static Token Parse(List<Token> tokens) {
+        return ParseTokens(ParseParenthesis(tokens
             .Where(t => t is not WhiteSpaceToken && t is not CommentToken)
-            .Select(t => t is SymbolToken st && emptyObjectOperators.Contains(st.Text) ? new EmptyObjectToken(st) : t)
-            .ToList();
-        for (; ; ) // parse parenthesis loop
+            .Select(t => t is SymbolToken st && emptyObjectOperators.Contains(st.Text) ? new RootToken(st) : t)
+            .ToList()));
+    }
+
+    private static List<Token> ParseParenthesis(List<Token> tokens) {
+        for (; ; )
         {
             var rightParen = tokens.FindIndex(t => t is SymbolToken st && closeParenOperators.Contains(st.Text));
             if (rightParen < 0) break;
@@ -56,10 +58,8 @@ public class Parser
             var innerTokens = tokens.GetRange(leftParen + 1, rightParen - leftParen - 1);
             tokens.RemoveRange(leftParen, rightParen - leftParen + 1);
             var token = ParseTokens(innerTokens);
-            if (prefix != null)
-            {
-                switch(leftChar)
-                {
+            if (prefix != null) {
+                switch (leftChar) {
                     case '{': break;
                     case '[': tokens.RemoveAt(--leftParen); token = new DerefToken(prefix, token); break;
                     case '(': tokens.RemoveAt(--leftParen); token = new MethodInvokeToken(prefix, token); break;
@@ -68,7 +68,7 @@ public class Parser
             }
             tokens.Insert(leftParen, token);
         }
-        return ParseTokens(tokens);
+        return tokens;
     }
 
     private static Token ParseTokens(List<Token> tokens)

@@ -13,7 +13,7 @@ public class Token
     }
     public string Text => text.Substring(start, length);
     public virtual IValue Eval(Variables vars) => throw new Exception($"unhandled {GetType().Name}");
-    public virtual void PrettyPrint(string indent) => Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
+    public virtual void PrettyPrint(string indent) => Console.WriteLine($"{indent}─{this.GetType().Name} - text={Text}");
     public static Token Lex(string text, ref int i)
     {
         return WhiteSpaceToken.Lex(text, ref i) ??
@@ -98,18 +98,12 @@ public class StringToken : Token
             i = j + 2;
         }
     }
-    private static char UnescapeChar(char c) => c switch
+    private static readonly string escapeCharMatch = "0rnbfatv", escapeCharReplace = "\0\r\n\b\f\a\t\v";
+    private static char UnescapeChar(char c)
     {
-        '0' => '\0',
-        'r' => '\r',
-        'n' => '\n',
-        'b' => '\b',
-        'f' => '\f',
-        'a' => '\a',
-        't' => '\t',
-        'v' => '\v',
-        _ => c
-    };
+        int i = escapeCharMatch.IndexOf(c);
+        return i < 0 ? c : escapeCharReplace[i];
+    }
     public override IValue Eval(Variables vars) => new StringValue(String);
 }
 
@@ -131,22 +125,23 @@ public class SymbolToken : Token
     public SymbolToken(string text, int start, int length) : base(text, start, length) { }
     public static new Token? Lex(string text, ref int i)
     {
-        if (i + 3 <= text.Length && Parser.symbols.Contains(text.Substring(i, 3)))
-            return new SymbolToken(text, (i += 3) - 3, 3);
-        if (i + 2 <= text.Length && Parser.symbols.Contains(text.Substring(i, 2)))
-            return new SymbolToken(text, (i += 2) - 2, 2);
-        return Parser.symbols.Contains(text.Substring(i, 1)) ? new SymbolToken(text, i++, 1) : null;
+        if (Parser.AllSymbols.Any(s => s.Length > 3)) throw new Exception("Unexpected symbol length > 3");
+        for (int l = 3; l >= 1; l--)
+            if (i + l <= text.Length && Parser.AllSymbols.Contains(text.Substring(i, l)))
+                return new SymbolToken(text, (i += l) - l, l);
+        return null;
     }
 }
 
-public class EmptyObjectToken : Token
+public class RootToken : Token
 {
-    public EmptyObjectToken(SymbolToken token) : base(token.text, token.start, token.length) { }
-    public override IValue Eval(Variables vars) => Text switch
+    private readonly SymbolToken root;
+    public RootToken(SymbolToken token) : base(token.text, token.start, token.length) { root = token; }
+    public override IValue Eval(Variables vars) => root.Text switch
     {
         "[]" => new ArrayValue(),
         "{}" => new DictionaryValue(),
-        _ => throw new Exception("Unexpected EmptyObjectToken")
+        _ => throw new Exception("Unexpected RootToken")
     };
 }
 
@@ -172,7 +167,7 @@ public class UnaryToken : Token
     }
     public override void PrettyPrint(string indent)
     {
-        Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
+        Console.WriteLine($"{indent}─{this.GetType().Name} - text={Text}");
         root.PrettyPrint(indent + "  ");
         right.PrettyPrint(indent + "  ");
     }
@@ -315,7 +310,7 @@ public class BinaryToken : Token
     }
     public override void PrettyPrint(string indent)
     {
-        Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
+        Console.WriteLine($"{indent}─{this.GetType().Name} - text={Text}");
         root.PrettyPrint(indent + "  ");
         left.PrettyPrint(indent + "  ");
         right.PrettyPrint(indent + "  ");
@@ -352,7 +347,7 @@ public class DerefToken : Token
     }
     public override void PrettyPrint(string indent)
     {
-        Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
+        Console.WriteLine($"{indent}─{this.GetType().Name} - text={Text}");
         root.PrettyPrint(indent + "  ");
         right.PrettyPrint(indent + "  ");
     }
@@ -376,7 +371,7 @@ public class MethodInvokeToken : Token
     }
     public override void PrettyPrint(string indent)
     {
-        Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
+        Console.WriteLine($"{indent}─{this.GetType().Name} - text={Text}");
         root.PrettyPrint(indent + "  ");
         right.PrettyPrint(indent + "  ");
     }
