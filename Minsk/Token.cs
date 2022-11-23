@@ -10,12 +10,8 @@ public class Token
         this.text = text;
         this.start = start;
         this.length = length;
-        TextString = new Lazy<string>(() => Text.ToString());
     }
-    internal Lazy<string> TextString { get; }
-    public ReadOnlySpan<char> Text => text.AsSpan().Slice(start, length);
-    public bool TextEquals(ReadOnlySpan<char> str) => Text.CompareTo(str, StringComparison.Ordinal) == 0;
-    public bool TextEquals(string str) => Text.CompareTo(str, StringComparison.Ordinal) == 0;
+    public string Text => text.Substring(start, length);
     public virtual IValue Eval(Variables vars) => throw new Exception($"unhandled {GetType().Name}");
     public virtual void PrettyPrint(string indent) => Console.WriteLine($"{indent} {this.GetType().Name} - text={Text}");
     public static Token Lex(string text, ref int i)
@@ -127,23 +123,19 @@ public class IdentifierToken : Token
         while (i < text.Length && (char.IsLetterOrDigit(text[i]) || text[i] == '_')) i++;
         return new IdentifierToken(text, start, i - start);
     }
-    public override IValue Eval(Variables vars) => vars.Get(TextString.Value);
+    public override IValue Eval(Variables vars) => vars.Get(Text);
 }
 
 public class SymbolToken : Token
 {
-    private static readonly List<string> twoCharSymbols = new() { "!=", ">=", "<=", "[]", "{}", "??", "!?", "::" };
-    private static readonly string oneCharSymbols = "!%*()-+=:<>/^{}[].;?";
     public SymbolToken(string text, int start, int length) : base(text, start, length) { }
     public static new Token? Lex(string text, ref int i)
     {
-        if (i + 2 <= text.Length && twoCharSymbols.Contains(text.Substring(i, 2)))
-        {
-            var symbol = new SymbolToken(text, i, 2);
-            i += 2;
-            return symbol;
-        }
-        return oneCharSymbols.Contains(text[i]) ? new SymbolToken(text, i++, 1) : null;
+        if (i + 3 <= text.Length && Parser.symbols.Contains(text.Substring(i, 3)))
+            return new SymbolToken(text, (i += 3) - 3, 3);
+        if (i + 2 <= text.Length && Parser.symbols.Contains(text.Substring(i, 2)))
+            return new SymbolToken(text, (i += 2) - 2, 2);
+        return Parser.symbols.Contains(text.Substring(i, 1)) ? new SymbolToken(text, i++, 1) : null;
     }
 }
 
@@ -198,12 +190,12 @@ public class BinaryToken : Token
     }
     public override IValue Eval(Variables vars)
     {
-        if (root.Text.SequenceEqual(";"))
+        if (root.Text == ";")
         {
             left.Eval(vars);
             return right.Eval(vars);
         }
-        if (root.Text.SequenceEqual("?"))
+        if (root.Text == "?")
         {
             for (; ; )
             {
@@ -212,42 +204,42 @@ public class BinaryToken : Token
                 right.Eval(vars);
             }
         }
-        if (root.Text.SequenceEqual("??"))
+        if (root.Text == "??")
         {
             var lv2 = left.Eval(vars);
             return lv2.Double == 0.0 ? lv2 : right.Eval(vars);
         }
-        if (root.Text.SequenceEqual("!?"))
+        if (root.Text == "!?")
         {
             var lv2 = left.Eval(vars);
             return lv2.Double != 0.0 ? lv2 : right.Eval(vars);
         }
-        if (root.Text.SequenceEqual("::"))
+        if (root.Text == "::")
         {
-            if (left is BinaryToken bt && bt.root is SymbolToken st &&  (st.Text.SequenceEqual("??") || st.Text.SequenceEqual("!?")))
+            if (left is BinaryToken bt && bt.root is SymbolToken st && (st.Text == "??" || st.Text == "!?"))
             {
                 var lv2 = bt.left.Eval(vars).Double;
-                if (st.Text.SequenceEqual("!?")) lv2 = lv2 == 0.0 ? 1.0 : 0.0;
+                if (st.Text == "!?") lv2 = lv2 == 0.0 ? 1.0 : 0.0;
                 return lv2 != 0.0 ? bt.right.Eval(vars) : right.Eval(vars);
             }
             throw new Exception("Unbalanced else(::) found");
         }
-        if (root.Text.SequenceEqual("."))
+        if (root.Text == ".")
         {
             var lv2 = left.Eval(vars);
             if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
-                return dv.ObjectByKey(iv.TextString.Value);
+                return dv.ObjectByKey(iv.Text);
             throw new Exception($"cannot dereference {lv2.GetType().Name} by {right.GetType().Name}");
         }
-        if (root.Text.SequenceEqual(":") && left is MethodInvokeToken mit)
+        if (root.Text == ":" && left is MethodInvokeToken mit)
             return (IValue)mit.Set(vars, right);
         var rv = right.Eval(vars);
-        if (root.Text.SequenceEqual(":")) // root.Text==":" does not work because root.Text is a ReadOnlySpan<char> :(
+        if (root.Text == ":")
         {
-            if (left is BinaryToken bt && bt.root.Text.SequenceEqual(".")) { bt.SetDot(rv, vars); return rv; }
+            if (left is BinaryToken bt && bt.root.Text == ".") { bt.SetDot(rv, vars); return rv; }
             if (left is DerefToken dt) { dt.Set(rv, vars); return rv; }
             if (left is not IdentifierToken it) throw new Exception("Cannot assign to non-identifier");
-            vars.Set(it.TextString.Value, rv);
+            vars.Set(it.Text, rv);
             return rv;
         }
 
@@ -318,7 +310,7 @@ public class BinaryToken : Token
     {
         var lv2 = left.Eval(vars);
         if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
-            dv.SetObjectByKey(iv.TextString.Value, value);
+            dv.SetObjectByKey(iv.Text, value);
         else throw new Exception($"Cannot assign to {lv2.GetType().Name} . {right.GetType().Name}");
     }
     public override void PrettyPrint(string indent)
@@ -390,10 +382,10 @@ public class MethodInvokeToken : Token
     }
     public FunctionValue Set(Variables vars, Token definition)
     {
-        var methodName = this.root.TextString.Value;
-        var parameterName = (this.right as IdentifierToken)!.TextString.Value;
+        var methodName = this.root.Text;
+        var parameterName = (this.right as IdentifierToken)!.Text;
 
-        var fv  = new FunctionValue(parameterName, (n) => definition.Eval(vars));
+        var fv = new FunctionValue(parameterName, (n) => definition.Eval(vars));
         vars.Set(methodName, fv);
         return fv;
     }

@@ -2,15 +2,13 @@
 
 public class Parser
 {
+    private static readonly string openParenOperators = "{[(", closeParenOperators = "}])";
     private static readonly List<string> emptyObjectOperators = new List<string>() { "[]", "{}" };
-
     private static readonly List<List<string>> unaryOperators = new()
     {
         new() { "+", "-" }, // unary plus, minus
         new() { "!" }, // not
-    };
-
-    private static readonly List<List<string>> binaryOperators = new()
+    }, binaryOperators = new()
     {
         new() { "." }, // deref
         new() { "^" }, // exp
@@ -21,6 +19,13 @@ public class Parser
         new() { "?", "??", "!?", "::" }, // while, if/notif, else
         new() { ";" }, // seperator
     };
+
+    internal static readonly List<string> symbols =
+        "[]{}()".ToCharArray().ToList().Select(c => "" + c)
+        .Union(emptyObjectOperators)
+        .Union(unaryOperators.SelectMany(s => s))
+        .Union(binaryOperators.SelectMany(s => s))
+        .ToList();
 
     private Parser() { }
 
@@ -38,23 +43,28 @@ public class Parser
     {
         tokens = tokens
             .Where(t => t is not WhiteSpaceToken && t is not CommentToken)
-            .Select(t => t is SymbolToken st && emptyObjectOperators.Contains(st.TextString.Value) ? new EmptyObjectToken(st) : t)
+            .Select(t => t is SymbolToken st && emptyObjectOperators.Contains(st.Text) ? new EmptyObjectToken(st) : t)
             .ToList();
         for (; ; ) // parse parenthesis loop
         {
-            var rightParen = tokens.FindIndex(t => t is SymbolToken st && "}])".Contains(st.TextString.Value));
+            var rightParen = tokens.FindIndex(t => t is SymbolToken st && closeParenOperators.Contains(st.Text));
             if (rightParen < 0) break;
-            var leftChar = "{[("["}])".IndexOf(tokens[rightParen].TextString.Value)];
-            var leftParen = tokens.FindLastIndex(rightParen - 1, t => t is SymbolToken st && st.TextString.Value == "" + leftChar);
+            var leftChar = openParenOperators[closeParenOperators.IndexOf(tokens[rightParen].Text)];
+            var leftParen = tokens.FindLastIndex(rightParen - 1, t => t is SymbolToken st && st.Text == "" + leftChar);
             if (leftParen < 0) throw new Exception("Unmatched parenthesis/brackets/braces");
             var prefix = leftParen == 0 ? null : tokens[leftParen - 1] as IdentifierToken;
             var innerTokens = tokens.GetRange(leftParen + 1, rightParen - leftParen - 1);
             tokens.RemoveRange(leftParen, rightParen - leftParen + 1);
             var token = ParseTokens(innerTokens);
-            if (prefix != null && leftChar != '{')
+            if (prefix != null)
             {
-                tokens.RemoveAt(--leftParen);
-                token = leftChar == '[' ? new DerefToken(prefix, token) : new MethodInvokeToken(prefix, token);
+                switch(leftChar)
+                {
+                    case '{': break;
+                    case '[': tokens.RemoveAt(--leftParen); token = new DerefToken(prefix, token); break;
+                    case '(': tokens.RemoveAt(--leftParen); token = new MethodInvokeToken(prefix, token); break;
+                    default: throw new Exception("unknown opening parentheis operator " + leftChar);
+                }
             }
             tokens.Insert(leftParen, token);
         }
@@ -75,7 +85,7 @@ public class Parser
     {
         var newTokens = new List<Token>();
         for (int i = 0; i < tokens.Count; i++)
-            if (tokens[i] is SymbolToken st && operators.Contains(st.TextString.Value) &&
+            if (tokens[i] is SymbolToken st && operators.Contains(st.Text) &&
                 (i == 0 || tokens[i - 1] is SymbolToken))
                 newTokens.Add(new UnaryToken(st, tokens[++i]));
             else
@@ -87,7 +97,7 @@ public class Parser
     {
         var newTokens = new List<Token>();
         for (int i = 0; i < tokens.Count; i++)
-            if (i > 0 && tokens[i] is SymbolToken st && operators.Contains(st.TextString.Value))
+            if (i > 0 && tokens[i] is SymbolToken st && operators.Contains(st.Text))
                 newTokens[^1] = new BinaryToken(st, newTokens[^1], tokens[++i]);
             else
                 newTokens.Add(tokens[i]);
