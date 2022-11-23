@@ -1,5 +1,4 @@
-﻿using System;
-namespace Minsk;
+﻿namespace Minsk;
 
 public interface IValue
 {

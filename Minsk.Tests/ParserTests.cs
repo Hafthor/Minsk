@@ -107,9 +107,9 @@ public class ParserTests
     [TestMethod]
     public void ParseDictDeref()
     {
-        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.718) } });
-        vars.Set("d", d);
-        var actual = Parser.LexParse("d[\"e\"]").Eval(vars);
+        var dict = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.718) } });
+        vars.Set("dict", dict);
+        var actual = Parser.LexParse("dict[\"e\"]").Eval(vars);
         Assert.IsTrue(actual is DoubleValue);
         Assert.AreEqual(2.718, actual.Double);
     }
@@ -117,10 +117,10 @@ public class ParserTests
     [TestMethod]
     public void ParseDictSet()
     {
-        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) } });
-        vars.Set("d", d);
-        var actual = Parser.LexParse("d[\"e\"]:2.718").Eval(vars);
-        var objE = d.ObjectByKey("e");
+        var dict = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) } });
+        vars.Set("dict", dict);
+        var actual = Parser.LexParse("dict[\"e\"]:2.718").Eval(vars);
+        var objE = dict.ObjectByKey("e");
         Assert.IsTrue(objE is DoubleValue);
         Assert.AreEqual(2.718, objE.Double);
     }
@@ -128,9 +128,9 @@ public class ParserTests
     [TestMethod]
     public void ParseDotDictDeref()
     {
-        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.718) } });
-        vars.Set("d", d);
-        var actual = Parser.LexParse("d.pi").Eval(vars);
+        var dict = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) }, { "e", new DoubleValue(2.718) } });
+        vars.Set("dict", dict);
+        var actual = Parser.LexParse("dict.pi").Eval(vars);
         Assert.IsTrue(actual is DoubleValue);
         Assert.AreEqual(3.14, actual.Double);
     }
@@ -138,10 +138,10 @@ public class ParserTests
     [TestMethod]
     public void ParseDotDictSet()
     {
-        var d = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) } });
-        vars.Set("d", d);
-        var actual = Parser.LexParse("d.e:2.718").Eval(vars);
-        var objE = d.ObjectByKey("e");
+        var dict = new DictionaryValue(new Dictionary<string, IValue>() { { "pi", new DoubleValue(3.14) } });
+        vars.Set("dict", dict);
+        var actual = Parser.LexParse("dict.e:2.718").Eval(vars);
+        var objE = dict.ObjectByKey("e");
         Assert.IsTrue(objE is DoubleValue);
         Assert.AreEqual(2.718, objE.Double);
     }
@@ -227,11 +227,11 @@ public class ParserTests
     [TestMethod]
     public void ParseMethodDefine()
     {
-        var actual = Parser.LexParse("add3(n):n+3").Eval(vars);
-        Assert.IsTrue(actual is FunctionValue);
-        var actual2 = Parser.LexParse("add3(2)").Eval(vars);
-        Assert.IsTrue(actual2 is DoubleValue);
-        Assert.AreEqual(5.0, actual2.Double);
+        var actualMethodDefine = Parser.LexParse("add3(n):n+3").Eval(vars);
+        Assert.IsTrue(actualMethodDefine is FunctionValue);
+        var actualMethodInvoke = Parser.LexParse("add3(2)").Eval(vars);
+        Assert.IsTrue(actualMethodInvoke is DoubleValue);
+        Assert.AreEqual(5.0, actualMethodInvoke.Double);
     }
 
     [TestMethod]
@@ -247,24 +247,32 @@ public class ParserTests
     [TestMethod]
     public void ParseNotIf()
     {
-        var actual = Parser.LexParse("1 !? 2.718").Eval(vars);
-        Assert.IsTrue(actual is DoubleValue);
-        Assert.AreEqual(1.0, actual.Double);
+        var actualNotIfTrue = Parser.LexParse("1 !? 2.718").Eval(vars);
+        Assert.IsTrue(actualNotIfTrue is DoubleValue);
+        Assert.AreEqual(1.0, actualNotIfTrue.Double);
 
-        actual = Parser.LexParse("0 !? 2.718").Eval(vars);
-        Assert.IsTrue(actual is DoubleValue);
-        Assert.AreEqual(2.718, actual.Double);
+        var actualNotIfFalse = Parser.LexParse("0 !? 2.718").Eval(vars);
+        Assert.IsTrue(actualNotIfFalse is DoubleValue);
+        Assert.AreEqual(2.718, actualNotIfFalse.Double);
     }
 
     [TestMethod]
     public void ParseElse()
     {
-        var actual = Parser.LexParse("0 ?? 3.14 :: 2.718").Eval(vars);
-        Assert.IsTrue(actual is DoubleValue);
-        Assert.AreEqual(2.718, actual.Double);
+        var actualIfFalse = Parser.LexParse("0 ?? 3.14 :: 2.718").Eval(vars);
+        Assert.IsTrue(actualIfFalse is DoubleValue);
+        Assert.AreEqual(2.718, actualIfFalse.Double);
 
-        actual = Parser.LexParse("1 ?? 3.14 :: 2.718").Eval(vars);
-        Assert.IsTrue(actual is DoubleValue);
-        Assert.AreEqual(3.14, actual.Double);
+        var actualIfTrue = Parser.LexParse("1 ?? 3.14 :: 2.718").Eval(vars);
+        Assert.IsTrue(actualIfTrue is DoubleValue);
+        Assert.AreEqual(3.14, actualIfTrue.Double);
+
+        var actualNotIfFalse = Parser.LexParse("0 !? 3.14 :: 2.718").Eval(vars);
+        Assert.IsTrue(actualNotIfFalse is DoubleValue);
+        Assert.AreEqual(3.14, actualNotIfFalse.Double);
+
+        var actualNotIfTrue = Parser.LexParse("1 !? 3.14 :: 2.718").Eval(vars);
+        Assert.IsTrue(actualNotIfTrue is DoubleValue);
+        Assert.AreEqual(2.718, actualNotIfTrue.Double);
     }
 }
