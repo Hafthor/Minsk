@@ -3,11 +3,12 @@
 public class Parser
 {
     private static readonly string openParenOperators = "{[(", closeParenOperators = "}])";
-    private static readonly List<string> emptyObjectOperators = new List<string>() { "[]", "{}" };
+    private static readonly List<string> emptyObjectOperators = new List<string>() { "[]", "{}", "~" }; // array,dict,break
     private static readonly List<List<string>> unaryOperators = new()
     {
         new() { "+", "-" }, // unary plus, minus
         new() { "!" }, // not
+        new() { "~~" }, // return
     }, binaryOperators = new()
     {
         new() { "." }, // deref

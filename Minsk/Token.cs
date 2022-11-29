@@ -12,7 +12,7 @@ public class Token
         this.length = length;
     }
     public string Text => text.Substring(start, length);
-    public virtual IValue Eval(Variables vars) => throw new Exception($"unhandled {GetType().Name}");
+    public virtual IValue Eval(Context ctx) => throw new Exception($"unhandled {GetType().Name}");
     public virtual void PrettyPrint(string indent) => Console.WriteLine($"{indent}─{this.GetType().Name} - text={Text}");
     public static Token Lex(string text, ref int i)
     {
@@ -70,7 +70,7 @@ public class NumberToken : Token
         while (i < text.Length && (char.IsDigit(text[i]) || text[i] == '.' && text.IndexOf('.', start) == i)) i++;
         return new NumberToken(text, start, i - start);
     }
-    public override IValue Eval(Variables vars) => new DoubleValue(double.Parse(Text));
+    public override IValue Eval(Context ctx) => ctx.Escape ? NullValue.Instance : new DoubleValue(double.Parse(Text));
 }
 
 public class StringToken : Token
@@ -104,7 +104,7 @@ public class StringToken : Token
         int i = escapeCharMatch.IndexOf(c);
         return i < 0 ? c : escapeCharReplace[i];
     }
-    public override IValue Eval(Variables vars) => new StringValue(String);
+    public override IValue Eval(Context ctx) => ctx.Escape ? NullValue.Instance : new StringValue(String);
 }
 
 public class IdentifierToken : Token
@@ -117,7 +117,7 @@ public class IdentifierToken : Token
         while (i < text.Length && (char.IsLetterOrDigit(text[i]) || text[i] == '_')) i++;
         return new IdentifierToken(text, start, i - start);
     }
-    public override IValue Eval(Variables vars) => vars.Get(Text);
+    public override IValue Eval(Context ctx) => ctx.Escape ? NullValue.Instance : ctx.Get(Text);
 }
 
 public class SymbolToken : Token
@@ -137,12 +137,21 @@ public class RootToken : Token
 {
     private readonly SymbolToken root;
     public RootToken(SymbolToken token) : base(token.text, token.start, token.length) { root = token; }
-    public override IValue Eval(Variables vars) => root.Text switch
+    public override IValue Eval(Context ctx)
     {
-        "[]" => new ArrayValue(),
-        "{}" => new DictionaryValue(),
-        _ => throw new Exception("Unexpected RootToken")
-    };
+        if (ctx.Escape) return NullValue.Instance;
+        if (root.Text == "~")
+        {
+            ctx.EscapeLoop = true;
+            return NullValue.Instance;
+        }
+        return root.Text switch
+        {
+            "[]" => new ArrayValue(),
+            "{}" => new DictionaryValue(),
+            _ => throw new Exception("Unexpected RootToken")
+        };
+    }
 }
 
 public class UnaryToken : Token
@@ -154,14 +163,21 @@ public class UnaryToken : Token
         this.root = root;
         this.right = right;
     }
-    public override IValue Eval(Variables vars)
+    public override IValue Eval(Context ctx)
     {
+        if (ctx.Escape) return NullValue.Instance;
         static DoubleValue EvalNot(IValue v) => (v is StringValue ? string.IsNullOrEmpty(v.String) : v.Double == 0.0) ? DoubleValue.One : DoubleValue.Zero;
+        if (root.Text == "~~")
+        {
+            ctx.EscapeFuncValue = right.Eval(ctx);
+            ctx.EscapeFunc = true;
+            return ctx.EscapeFuncValue;
+        }
         return root.Text switch
         {
-            "+" => new DoubleValue(right.Eval(vars).Double),
-            "-" => new DoubleValue(-right.Eval(vars).Double),
-            "!" => EvalNot(right.Eval(vars)),
+            "+" => new DoubleValue(right.Eval(ctx).Double),
+            "-" => new DoubleValue(-right.Eval(ctx).Double),
+            "!" => EvalNot(right.Eval(ctx)),
             _ => throw new Exception($"unknown unary symbol {root.Text} in expression {Text}"),
         };
     }
@@ -183,62 +199,65 @@ public class BinaryToken : Token
         this.left = left;
         this.right = right;
     }
-    public override IValue Eval(Variables vars)
+    public override IValue Eval(Context ctx)
     {
+        if (ctx.Escape) return NullValue.Instance;
         if (root.Text == ";")
         {
-            left.Eval(vars);
-            return right.Eval(vars);
+            left.Eval(ctx);
+            return right.Eval(ctx);
         }
         if (root.Text == "?")
         {
             for (; ; )
             {
-                var lv2 = left.Eval(vars);
+                var lv2 = left.Eval(ctx);
+                if (ctx.Escape) { ctx.EscapeLoop = false; return lv2; }
                 if (lv2.Double == 0.0) return lv2;
-                right.Eval(vars);
+                right.Eval(ctx);
+                if (ctx.Escape) { ctx.EscapeLoop = false; return lv2; }
             }
         }
         if (root.Text == "??")
         {
-            var lv2 = left.Eval(vars);
-            return lv2.Double == 0.0 ? lv2 : right.Eval(vars);
+            var lv2 = left.Eval(ctx);
+            return lv2.Double == 0.0 ? lv2 : right.Eval(ctx);
         }
         if (root.Text == "!?")
         {
-            var lv2 = left.Eval(vars);
-            return lv2.Double != 0.0 ? lv2 : right.Eval(vars);
+            var lv2 = left.Eval(ctx);
+            return lv2.Double != 0.0 ? lv2 : right.Eval(ctx);
         }
         if (root.Text == "::")
         {
             if (left is BinaryToken bt && bt.root is SymbolToken st && (st.Text == "??" || st.Text == "!?"))
             {
-                var lv2 = bt.left.Eval(vars).Double;
+                var lv2 = bt.left.Eval(ctx).Double;
                 if (st.Text == "!?") lv2 = lv2 == 0.0 ? 1.0 : 0.0;
-                return lv2 != 0.0 ? bt.right.Eval(vars) : right.Eval(vars);
+                return lv2 != 0.0 ? bt.right.Eval(ctx) : right.Eval(ctx);
             }
             throw new Exception("Unbalanced else(::) found");
         }
         if (root.Text == ".")
         {
-            var lv2 = left.Eval(vars);
+            var lv2 = left.Eval(ctx);
             if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
                 return dv.ObjectByKey(iv.Text);
             throw new Exception($"cannot dereference {lv2.GetType().Name} by {right.GetType().Name}");
         }
         if (root.Text == ":" && left is MethodInvokeToken mit)
-            return (IValue)mit.Set(vars, right);
-        var rv = right.Eval(vars);
+            return (IValue)mit.Set(ctx, right);
+        var rv = right.Eval(ctx);
         if (root.Text == ":")
         {
-            if (left is BinaryToken bt && bt.root.Text == ".") { bt.SetDot(rv, vars); return rv; }
-            if (left is DerefToken dt) { dt.Set(rv, vars); return rv; }
+            if (left is BinaryToken bt && bt.root.Text == ".") { bt.SetDot(rv, ctx); return rv; }
+            if (left is DerefToken dt) { dt.Set(rv, ctx); return rv; }
             if (left is not IdentifierToken it) throw new Exception("Cannot assign to non-identifier");
-            vars.Set(it.Text, rv);
+            ctx.Set(it.Text, rv);
             return rv;
         }
 
-        var lv = left.Eval(vars);
+        var lv = left.Eval(ctx);
         if (lv is DoubleValue ldv)
             return EvalDoubleOperator(ldv, rv);
         if (lv is StringValue lsv)
@@ -301,9 +320,10 @@ public class BinaryToken : Token
         _ => throw new Exception($"unknown binary symbol {root.Text} in expression {Text}"),
     };
 
-    public void SetDot(IValue value, Variables vars)
+    public void SetDot(IValue value, Context ctx)
     {
-        var lv2 = left.Eval(vars);
+        if (ctx.Escape) return;
+        var lv2 = left.Eval(ctx);
         if (lv2 is DictionaryValue dv && right is IdentifierToken iv)
             dv.SetObjectByKey(iv.Text, value);
         else throw new Exception($"Cannot assign to {lv2.GetType().Name} . {right.GetType().Name}");
@@ -326,19 +346,21 @@ public class DerefToken : Token
         this.root = root;
         this.right = right;
     }
-    public override IValue Eval(Variables vars)
+    public override IValue Eval(Context ctx)
     {
-        IValue rv = right.Eval(vars), lv = root.Eval(vars);
+        if (ctx.Escape) return NullValue.Instance;
+        IValue rv = right.Eval(ctx), lv = root.Eval(ctx);
         if (lv is DictionaryValue dv && rv is StringValue)
             return dv.ObjectByKey(rv.String);
         if (lv is ArrayValue av && rv is DoubleValue)
             return av.ObjectByIndex(rv.Double);
         throw new Exception($"unable to dereference {lv.GetType().Name} by {rv.GetType().Name}");
     }
-    public void Set(IValue value, Variables vars)
+    public void Set(IValue value, Context ctx)
     {
-        var indexOrKey = right.Eval(vars);
-        IValue rv = right.Eval(vars), lv = root.Eval(vars);
+        if (ctx.Escape) return;
+        var indexOrKey = right.Eval(ctx);
+        IValue rv = right.Eval(ctx), lv = root.Eval(ctx);
         if (lv is DictionaryValue dv && rv is StringValue)
             dv.SetObjectByKey(rv.String, value);
         else if (lv is ArrayValue av && rv is DoubleValue)
@@ -362,11 +384,13 @@ public class MethodInvokeToken : Token
         this.root = root;
         this.right = right;
     }
-    public override IValue Eval(Variables vars)
+    public override IValue Eval(Context ctx)
     {
-        IValue rv = right.Eval(vars), lv = root.Eval(vars);
+        IValue rv = right.Eval(ctx), lv = root.Eval(ctx);
         if (lv is FunctionValue fv)
-            return fv.InvokeWith(rv, vars);
+            return fv.InvokeWith(rv, ctx);
+        ctx.EscapeFunc = false;
+        ctx.EscapeLoop = false;
         throw new Exception($"unable to invoke {lv.GetType().Name}");
     }
     public override void PrettyPrint(string indent)
@@ -375,13 +399,13 @@ public class MethodInvokeToken : Token
         root.PrettyPrint(indent + "  ");
         right.PrettyPrint(indent + "  ");
     }
-    public FunctionValue Set(Variables vars, Token definition)
+    public FunctionValue Set(Context ctx, Token definition)
     {
         var methodName = this.root.Text;
         var parameterName = (this.right as IdentifierToken)!.Text;
 
-        var fv = new FunctionValue(parameterName, (n) => definition.Eval(vars));
-        vars.Set(methodName, fv);
+        var fv = new FunctionValue(parameterName, (n) => definition.Eval(ctx));
+        ctx.Set(methodName, fv);
         return fv;
     }
 }

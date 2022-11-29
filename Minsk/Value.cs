@@ -31,6 +31,7 @@ public class DoubleValue : IValue
 
 public class StringValue : IValue
 {
+	public static readonly StringValue Empty = new StringValue("");
 	private readonly string value;
 	private readonly Lazy<double> @double;
 	public StringValue(string value) { this.value = value; @double = new Lazy<double>(() => double.Parse(value)); }
@@ -41,6 +42,7 @@ public class StringValue : IValue
 
 public class DictionaryValue : IValue
 {
+	public static readonly DictionaryValue Empty = new DictionaryValue();
 	private readonly Dictionary<string, IValue> value;
 	public DictionaryValue() { value = new Dictionary<string, IValue>(); }
 	public DictionaryValue(Dictionary<string, IValue> dict) { value = dict; }
@@ -53,6 +55,7 @@ public class DictionaryValue : IValue
 
 public class ArrayValue : IValue
 {
+	public static readonly ArrayValue Empty = new ArrayValue();
 	private readonly List<IValue> value;
 	public ArrayValue() { value = new List<IValue>(); }
 	public ArrayValue(List<IValue> arr) { value = arr; }
@@ -73,6 +76,7 @@ public class ArrayValue : IValue
 
 public class FunctionValue : IValue
 {
+	public static readonly FunctionValue Identity = new FunctionValue("x", (x) => x);
     private readonly string parameterName;
     private readonly Func<IValue, IValue> value;
 	public FunctionValue(string parameterName, Func<IValue, IValue> func)
@@ -83,12 +87,17 @@ public class FunctionValue : IValue
 	public string String => "[Function]";
 	public double Double => double.NaN;
 	public object Object => value;
-	public IValue InvokeWith(IValue param, Variables vars)
+	public IValue InvokeWith(IValue param, Context ctx)
 	{
-		vars.EnterScope();
-		vars.Set(parameterName, param);
+		ctx.EnterScope();
+		ctx.Set(parameterName, param);
 		var returnValue = value(param);
-		vars.LeaveScope();
+		if (ctx.EscapeFunc)
+		{
+			returnValue = ctx.EscapeFuncValue;
+			ctx.EscapeFunc = false;
+		}
+        ctx.LeaveScope();
 		return returnValue;
 	}
 }

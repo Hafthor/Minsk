@@ -6,6 +6,7 @@ public class Program
     {
         bool prettyPrint = false;
         var vars = new Variables();
+        var ctx = new Context(vars);
         for (; ; )
         {
             Console.Write("> ");
@@ -14,7 +15,7 @@ public class Program
             if (line == "#pretty") { prettyPrint = !prettyPrint; continue; }
             var root = Parser.LexParse(line);
             if (prettyPrint) root.PrettyPrint("");
-            var d = root.Eval(vars);
+            var d = root.Eval(ctx);
             Console.WriteLine(d.String);
         }
         return 0;
